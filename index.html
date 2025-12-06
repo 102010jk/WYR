@@ -1,0 +1,644 @@
+import React, { useState, useEffect } from 'react';
+import { Users, Play, Crown, Check, Edit, ArrowRight, RotateCcw } from 'lucide-react';
+
+export default function WouldYouRatherGame() {
+  const [gameId, setGameId] = useState('');
+  const [playerName, setPlayerName] = useState('');
+  const [isHost, setIsHost] = useState(false);
+  const [hasJoined, setHasJoined] = useState(false);
+  const [gameState, setGameState] = useState(null);
+  const [myVote, setMyVote] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [myQuestions, setMyQuestions] = useState([]);
+  const [isReady, setIsReady] = useState(false);
+
+  useEffect(() => {
+    if (hasJoined && gameId) {
+      const interval = setInterval(async () => {
+        try {
+          const result = await window.storage.get(`game:${gameId}`, true);
+          if (result) {
+            const game = JSON.parse(result.value);
+            setGameState(game);
+            
+            if (game.status === 'preparing' && game.playersReady) {
+              setIsReady(game.playersReady[playerName] || false);
+            }
+            
+            if (game.currentQuestionId && game.currentQuestionId !== gameState?.currentQuestionId) {
+              setMyVote(null);
+            }
+          }
+        } catch (error) {
+          console.log('Načítání...');
+        }
+      }, 2000);
+      return () => clearInterval(interval);
+    }
+  }, [hasJoined, gameId, playerName, gameState?.currentQuestionId]);
+
+  const createGame = async () => {
+    if (!playerName.trim()) {
+      alert('Zadej své jméno!');
+      return;
+    }
+    const newGameId = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const newGame = {
+      host: playerName,
+      status: 'waiting',
+      players: { [playerName]: { joined: Date.now() } },
+      questionsPerPlayer: 3,
+      allQuestions: [],
+      usedQuestions: [],
+      currentQuestion: null,
+      currentQuestionId: null,
+      votes: {},
+      playersReady: {}
+    };
+    
+    try {
+      await window.storage.set(`game:${newGameId}`, JSON.stringify(newGame), true);
+      setGameId(newGameId);
+      setIsHost(true);
+      setHasJoined(true);
+      setGameState(newGame);
+    } catch (error) {
+      alert('Chyba při vytváření hry');
+    }
+  };
+
+  const joinGame = async () => {
+    if (!playerName.trim() || !gameId.trim()) {
+      alert('Zadej jméno a kód hry!');
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      const result = await window.storage.get(`game:${gameId.toUpperCase()}`, true);
+      if (!result) {
+        alert('Hra s tímto kódem neexistuje!');
+        setLoading(false);
+        return;
+      }
+      
+      const game = JSON.parse(result.value);
+      
+      if (game.status !== 'waiting' && game.status !== 'preparing') {
+        alert('Do této hry se už nelze připojit!');
+        setLoading(false);
+        return;
+      }
+      
+      setGameState(game);
+      setHasJoined(true);
+      setGameId(gameId.toUpperCase());
+      
+      if (!game.players[playerName]) {
+        game.players[playerName] = { joined: Date.now() };
+        await window.storage.set(`game:${gameId.toUpperCase()}`, JSON.stringify(game), true);
+      }
+    } catch (error) {
+      alert('Chyba při připojování ke hře');
+    }
+    setLoading(false);
+  };
+
+  const setQuestionsCount = async (count) => {
+    const updatedGame = { ...gameState, questionsPerPlayer: count };
+    try {
+      await window.storage.set(`game:${gameId}`, JSON.stringify(updatedGame), true);
+      setGameState(updatedGame);
+    } catch (error) {
+      alert('Chyba');
+    }
+  };
+
+  const startPreparing = async () => {
+    const updatedGame = { ...gameState, status: 'preparing', playersReady: {} };
+    try {
+      await window.storage.set(`game:${gameId}`, JSON.stringify(updatedGame), true);
+      setGameState(updatedGame);
+      const emptyQuestions = Array(gameState.questionsPerPlayer).fill(null).map(() => ({
+        optionA: '', optionB: ''
+      }));
+      setMyQuestions(emptyQuestions);
+    } catch (error) {
+      alert('Chyba');
+    }
+  };
+
+  const submitQuestions = async () => {
+    const allFilled = myQuestions.every(q => q.optionA.trim() && q.optionB.trim());
+    if (!allFilled) {
+      alert('Vyplň všechny otázky!');
+      return;
+    }
+
+    const questionsWithAuthor = myQuestions.map(q => ({ ...q, author: playerName }));
+    const updatedGame = { ...gameState };
+    updatedGame.allQuestions = [...(updatedGame.allQuestions || []), ...questionsWithAuthor];
+    updatedGame.playersReady[playerName] = true;
+
+    try {
+      await window.storage.set(`game:${gameId}`, JSON.stringify(updatedGame), true);
+      setGameState(updatedGame);
+      setIsReady(true);
+    } catch (error) {
+      alert('Chyba');
+    }
+  };
+
+  const startGame = async () => {
+    const readyCount = Object.values(gameState.playersReady).filter(r => r).length;
+    const playerCount = Object.keys(gameState.players).length;
+    
+    if (readyCount < playerCount) {
+      alert('Ještě ne všichni hráči jsou připraveni!');
+      return;
+    }
+
+    const shuffled = [...gameState.allQuestions].sort(() => Math.random() - 0.5);
+    const firstQuestion = shuffled[0];
+
+    const updatedGame = {
+      ...gameState,
+      status: 'voting',
+      currentQuestion: firstQuestion,
+      currentQuestionId: Date.now(),
+      usedQuestions: [firstQuestion],
+      votes: {}
+    };
+
+    try {
+      await window.storage.set(`game:${gameId}`, JSON.stringify(updatedGame), true);
+      setGameState(updatedGame);
+      setMyVote(null);
+    } catch (error) {
+      alert('Chyba');
+    }
+  };
+
+  const vote = async (option) => {
+    if (!playerName || myVote) return;
+
+    const updatedVotes = { ...gameState.votes };
+    updatedVotes[playerName] = option;
+    const updatedGame = { ...gameState, votes: updatedVotes };
+
+    try {
+      await window.storage.set(`game:${gameId}`, JSON.stringify(updatedGame), true);
+      setMyVote(option);
+      setGameState(updatedGame);
+    } catch (error) {
+      alert('Chyba');
+    }
+  };
+
+  const showResults = async () => {
+    const updatedGame = { ...gameState, status: 'results' };
+    try {
+      await window.storage.set(`game:${gameId}`, JSON.stringify(updatedGame), true);
+      setGameState(updatedGame);
+    } catch (error) {
+      alert('Chyba');
+    }
+  };
+
+  const nextQuestion = async () => {
+    const remaining = gameState.allQuestions.filter(q => 
+      !gameState.usedQuestions.some(used => 
+        used.optionA === q.optionA && used.optionB === q.optionB
+      )
+    );
+
+    if (remaining.length === 0) {
+      alert('Všechny otázky byly použity!');
+      return;
+    }
+
+    const randomQuestion = remaining[Math.floor(Math.random() * remaining.length)];
+    const updatedGame = {
+      ...gameState,
+      status: 'voting',
+      currentQuestion: randomQuestion,
+      currentQuestionId: Date.now(),
+      usedQuestions: [...gameState.usedQuestions, randomQuestion],
+      votes: {}
+    };
+
+    try {
+      await window.storage.set(`game:${gameId}`, JSON.stringify(updatedGame), true);
+      setGameState(updatedGame);
+      setMyVote(null);
+    } catch (error) {
+      alert('Chyba');
+    }
+  };
+
+  const resetGame = async () => {
+    const updatedGame = {
+      ...gameState,
+      status: 'waiting',
+      allQuestions: [],
+      usedQuestions: [],
+      currentQuestion: null,
+      currentQuestionId: null,
+      votes: {},
+      playersReady: {}
+    };
+
+    try {
+      await window.storage.set(`game:${gameId}`, JSON.stringify(updatedGame), true);
+      setGameState(updatedGame);
+      setMyVote(null);
+      setMyQuestions([]);
+      setIsReady(false);
+    } catch (error) {
+      alert('Chyba');
+    }
+  };
+
+  if (!hasJoined) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-600 via-pink-500 to-red-500 p-4 flex items-center justify-center">
+        <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full">
+          <div className="text-center mb-8">
+            <h1 className="text-4xl font-bold text-gray-800 mb-2">Would You Rather?</h1>
+            <p className="text-gray-600">Multiplayer hra</p>
+          </div>
+
+          <div className="space-y-4 mb-6">
+            <input
+              type="text"
+              placeholder="Tvoje jméno"
+              value={playerName}
+              onChange={(e) => setPlayerName(e.target.value)}
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-purple-500"
+            />
+          </div>
+
+          <div className="space-y-3">
+            <button
+              onClick={createGame}
+              className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-4 rounded-lg font-semibold hover:from-purple-700 hover:to-pink-700 transition flex items-center justify-center gap-2"
+            >
+              <Crown size={20} />
+              Vytvořit hru (Host)
+            </button>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-300"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-white text-gray-500">nebo</span>
+              </div>
+            </div>
+
+            <input
+              type="text"
+              placeholder="Kód hry"
+              value={gameId}
+              onChange={(e) => setGameId(e.target.value.toUpperCase())}
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-purple-500 text-center font-mono text-xl"
+              maxLength={6}
+            />
+
+            <button
+              onClick={joinGame}
+              disabled={loading}
+              className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 text-white py-4 rounded-lg font-semibold hover:from-blue-700 hover:to-cyan-700 transition flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              <Users size={20} />
+              {loading ? 'Připojování...' : 'Připojit se'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!gameState) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-600 via-pink-500 to-red-500 flex items-center justify-center">
+        <div className="text-white text-2xl">Načítání...</div>
+      </div>
+    );
+  }
+
+  const playerCount = Object.keys(gameState.players).length;
+  const voteCount = Object.keys(gameState.votes).length;
+  const readyCount = Object.values(gameState.playersReady || {}).filter(r => r).length;
+  const remainingQuestions = gameState.allQuestions?.length - (gameState.usedQuestions?.length || 0);
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-purple-600 via-pink-500 to-red-500 p-4">
+      <div className="max-w-4xl mx-auto">
+        <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <h1 className="text-3xl font-bold text-gray-800">Would You Rather?</h1>
+                {isHost && <Crown className="text-yellow-500" size={28} />}
+              </div>
+              <p className="text-gray-600">
+                Kód: <span className="font-mono font-bold text-xl text-purple-600">{gameId}</span>
+              </p>
+            </div>
+            <div className="text-right">
+              <div className="flex items-center gap-2 text-gray-600">
+                <Users size={20} />
+                <span className="font-semibold">{playerCount} hráčů</span>
+              </div>
+              <p className="text-sm text-gray-500">Host: {gameState.host}</p>
+            </div>
+          </div>
+        </div>
+
+        {gameState.status === 'waiting' && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-2xl shadow-xl p-8">
+              <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">
+                {isHost ? 'Nastav hru' : 'Čekání na hosta'}
+              </h2>
+              
+              {isHost ? (
+                <div className="space-y-6">
+                  <div>
+                    <label className="block text-lg font-semibold text-gray-700 mb-4 text-center">
+                      Kolik otázek vytvoří každý hráč?
+                    </label>
+                    <div className="grid grid-cols-5 gap-3">
+                      {[1, 2, 3, 4, 5].map(num => (
+                        <button
+                          key={num}
+                          onClick={() => setQuestionsCount(num)}
+                          className={`py-4 rounded-xl font-bold text-2xl transition ${
+                            gameState.questionsPerPlayer === num
+                              ? 'bg-purple-600 text-white'
+                              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                          }`}
+                        >
+                          {num}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  <div className="bg-purple-50 p-6 rounded-xl text-center">
+                    <p className="text-lg text-purple-900">
+                      Celkem: <span className="font-bold text-2xl">{playerCount * gameState.questionsPerPlayer}</span> otázek
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={startPreparing}
+                    className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white py-5 rounded-xl font-bold hover:from-green-700 hover:to-emerald-700 transition flex items-center justify-center gap-2"
+                  >
+                    <Edit size={20} />
+                    Spustit tvorbu otázek
+                  </button>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <div className="text-6xl mb-4">⏳</div>
+                  <p className="text-gray-600">Host nastavuje...</p>
+                </div>
+              )}
+            </div>
+
+            <div className="bg-white rounded-2xl shadow-xl p-6">
+              <h3 className="text-xl font-bold text-gray-800 mb-4 text-center">Připojení hráči</h3>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                {Object.keys(gameState.players).map((name) => (
+                  <div key={name} className="bg-gradient-to-br from-purple-100 to-pink-100 p-4 rounded-lg text-center font-semibold">
+                    {name === gameState.host && '👑 '}
+                    {name}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {gameState.status === 'preparing' && (
+          <div className="bg-white rounded-2xl shadow-xl p-8">
+            <h2 className="text-3xl font-bold text-gray-800 mb-6 text-center">
+              Vytvoř {gameState.questionsPerPlayer} otázky
+            </h2>
+            
+            {!isReady ? (
+              <div className="space-y-6">
+                {Array(gameState.questionsPerPlayer).fill(null).map((_, idx) => (
+                  <div key={idx} className="bg-gradient-to-br from-purple-50 to-pink-50 p-6 rounded-xl">
+                    <h3 className="font-bold text-gray-800 mb-4">Otázka {idx + 1}</h3>
+                    <div className="space-y-3">
+                      <input
+                        type="text"
+                        placeholder="Možnost A"
+                        value={myQuestions[idx]?.optionA || ''}
+                        onChange={(e) => {
+                          const updated = [...myQuestions];
+                          if (!updated[idx]) updated[idx] = { optionA: '', optionB: '' };
+                          updated[idx].optionA = e.target.value;
+                          setMyQuestions(updated);
+                        }}
+                        className="w-full px-4 py-3 border-2 border-purple-300 rounded-lg focus:outline-none focus:border-purple-500"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Možnost B"
+                        value={myQuestions[idx]?.optionB || ''}
+                        onChange={(e) => {
+                          const updated = [...myQuestions];
+                          if (!updated[idx]) updated[idx] = { optionA: '', optionB: '' };
+                          updated[idx].optionB = e.target.value;
+                          setMyQuestions(updated);
+                        }}
+                        className="w-full px-4 py-3 border-2 border-pink-300 rounded-lg focus:outline-none focus:border-pink-500"
+                      />
+                    </div>
+                  </div>
+                ))}
+                
+                <button
+                  onClick={submitQuestions}
+                  className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-5 rounded-xl font-bold hover:from-purple-700 hover:to-pink-700 transition flex items-center justify-center gap-2"
+                >
+                  <Check size={20} />
+                  Odeslat a READY
+                </button>
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <div className="text-8xl mb-4">✅</div>
+                <p className="text-3xl font-bold text-green-600">Jsi připraven!</p>
+              </div>
+            )}
+
+            <div className="mt-8 pt-6 border-t-2">
+              <p className="text-center font-bold text-xl mb-4">
+                Připraveno: {readyCount} / {playerCount}
+              </p>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                {Object.keys(gameState.players).map(name => (
+                  <div
+                    key={name}
+                    className={`p-4 rounded-lg text-center font-semibold ${
+                      gameState.playersReady[name]
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-gray-100 text-gray-600'
+                    }`}
+                  >
+                    {gameState.playersReady[name] ? '✅' : '⏳'} {name}
+                  </div>
+                ))}
+              </div>
+
+              {isHost && readyCount === playerCount && (
+                <button
+                  onClick={startGame}
+                  className="w-full mt-6 bg-gradient-to-r from-green-600 to-emerald-600 text-white py-5 rounded-xl font-bold hover:from-green-700 hover:to-emerald-700 transition flex items-center justify-center gap-2"
+                >
+                  <Play size={24} />
+                  SPUSTIT HRU!
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {gameState.status === 'voting' && gameState.currentQuestion && (
+          <div className="bg-white rounded-2xl shadow-xl p-8">
+            <div className="text-center mb-6">
+              <span className="bg-purple-100 text-purple-800 px-6 py-3 rounded-full font-bold">
+                Otázka od: {gameState.currentQuestion.author}
+              </span>
+            </div>
+            <h2 className="text-4xl font-bold text-center text-gray-800 mb-8">
+              Raději bys...
+            </h2>
+            <div className="grid md:grid-cols-2 gap-6 mb-8">
+              <button
+                onClick={() => vote('A')}
+                disabled={myVote !== null}
+                className={`p-10 rounded-2xl font-bold text-2xl transition shadow-lg ${
+                  myVote === 'A'
+                    ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white ring-4 ring-blue-300'
+                    : 'bg-gradient-to-br from-blue-400 to-blue-500 text-white hover:scale-105'
+                } ${myVote && myVote !== 'A' ? 'opacity-40' : ''}`}
+              >
+                {myVote === 'A' && <Check className="inline mr-2" size={32} />}
+                {gameState.currentQuestion.optionA}
+              </button>
+              <button
+                onClick={() => vote('B')}
+                disabled={myVote !== null}
+                className={`p-10 rounded-2xl font-bold text-2xl transition shadow-lg ${
+                  myVote === 'B'
+                    ? 'bg-gradient-to-br from-pink-500 to-pink-600 text-white ring-4 ring-pink-300'
+                    : 'bg-gradient-to-br from-pink-400 to-pink-500 text-white hover:scale-105'
+                } ${myVote && myVote !== 'B' ? 'opacity-40' : ''}`}
+              >
+                {myVote === 'B' && <Check className="inline mr-2" size={32} />}
+                {gameState.currentQuestion.optionB}
+              </button>
+            </div>
+            <div className="text-center mb-6">
+              <p className="text-xl font-bold">
+                Hlasovalo: {voteCount} / {playerCount}
+              </p>
+            </div>
+            {isHost && (
+              <button
+                onClick={showResults}
+                className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-5 rounded-xl font-bold hover:from-purple-700 hover:to-pink-700 transition"
+              >
+                Zobrazit výsledky
+              </button>
+            )}
+          </div>
+        )}
+
+        {gameState.status === 'results' && gameState.currentQuestion && (
+          <div className="bg-white rounded-2xl shadow-xl p-8">
+            <div className="text-center mb-6">
+              <span className="bg-purple-100 text-purple-800 px-6 py-3 rounded-full font-bold">
+                Otázka od: {gameState.currentQuestion.author}
+              </span>
+            </div>
+            <h2 className="text-4xl font-bold text-center text-gray-800 mb-8">Výsledky</h2>
+            <div className="grid md:grid-cols-2 gap-6 mb-8">
+              <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-xl">
+                <h3 className="text-2xl font-bold text-blue-900 mb-4">{gameState.currentQuestion.optionA}</h3>
+                <div className="space-y-2 mb-4">
+                  {Object.entries(gameState.votes)
+                    .filter(([_, vote]) => vote === 'A')
+                    .map(([name]) => (
+                      <div key={name} className="bg-white p-4 rounded-lg shadow">
+                        <span className="font-semibold text-gray-800">
+                          {name === gameState.currentQuestion.author ? '👑 ' : '👤 '}
+                          {name}
+                        </span>
+                      </div>
+                    ))}
+                </div>
+                <div className="text-center">
+                  <span className="text-4xl font-bold text-blue-900">
+                    {Object.values(gameState.votes).filter(v => v === 'A').length} hlasů
+                  </span>
+                </div>
+              </div>
+              <div className="bg-gradient-to-br from-pink-50 to-pink-100 p-6 rounded-xl">
+                <h3 className="text-2xl font-bold text-pink-900 mb-4">{gameState.currentQuestion.optionB}</h3>
+                <div className="space-y-2 mb-4">
+                  {Object.entries(gameState.votes)
+                    .filter(([_, vote]) => vote === 'B')
+                    .map(([name]) => (
+                      <div key={name} className="bg-white p-4 rounded-lg shadow">
+                        <span className="font-semibold text-gray-800">
+                          {name === gameState.currentQuestion.author ? '👑 ' : '👤 '}
+                          {name}
+                        </span>
+                      </div>
+                    ))}
+                </div>
+                <div className="text-center">
+                  <span className="text-4xl font-bold text-pink-900">
+                    {Object.values(gameState.votes).filter(v => v === 'B').length} hlasů
+                  </span>
+                </div>
+              </div>
+            </div>
+            {isHost && (
+              <div>
+                {remainingQuestions > 0 ? (
+                  <button
+                    onClick={nextQuestion}
+                    className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white py-5 rounded-xl font-bold hover:from-green-700 hover:to-emerald-700 transition flex items-center justify-center gap-2"
+                  >
+                    <ArrowRight size={20} />
+                    Další otázka ({remainingQuestions} zbývá)
+                  </button>
+                ) : (
+                  <div className="text-center py-8">
+                    <p className="text-5xl mb-4">🎉</p>
+                    <p className="text-2xl font-bold mb-6">Konec hry!</p>
+                    <button
+                      onClick={resetGame}
+                      className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-5 rounded-xl font-bold hover:from-purple-700 hover:to-pink-700 transition flex items-center justify-center gap-2"
+                    >
+                      <RotateCcw size={20} />
+                      Nová hra
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
