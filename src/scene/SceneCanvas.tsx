@@ -2,6 +2,7 @@ import { Canvas } from '@react-three/fiber';
 import { Starfield } from './Starfield';
 import { LandingScene } from './landing/LandingScene';
 import { CameraRig } from './CameraRig';
+import { CartEarthScene } from '../hud/cart/CartEarthScene';
 import { useAppStore } from '../state/appStore';
 import { SCENE } from '../lib/constants';
 
@@ -41,6 +42,7 @@ export function SceneCanvas() {
         <color attach="background" args={['#000000']} />
         <Starfield />
         {appState === 'landing' && <LandingScene />}
+        {appState === 'hud.cart' && <CartEarthScene />}
         <CameraRig />
       </Canvas>
     </div>

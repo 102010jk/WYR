@@ -153,28 +153,13 @@ function SlotElement({ slot, radius, morphRef, onEnter, onLeave, onClick }: Slot
         <div
           ref={divRef}
           onClick={onClick}
-          style={{
-            opacity: 0,
-            pointerEvents: 'auto',
-            cursor: 'crosshair',
-            fontFamily: '"Orbitron", ui-sans-serif, sans-serif',
-            fontSize: '10px',
-            fontWeight: 700,
-            letterSpacing: '0.22em',
-            color: 'rgba(255,255,255,0.92)',
-            textShadow: '0 0 10px rgba(255,255,255,0.5)',
-            background: 'rgba(255,255,255,0.07)',
-            backdropFilter: 'blur(12px)',
-            WebkitBackdropFilter: 'blur(12px)',
-            border: '1px solid rgba(255,255,255,0.22)',
-            boxShadow:
-              '0 0 20px rgba(255,255,255,0.06), inset 0 0 12px rgba(255,255,255,0.04)',
-            padding: '7px 20px',
-            whiteSpace: 'nowrap',
-            userSelect: 'none',
-            willChange: 'opacity, transform',
-          }}
+          className="bbb-ring-button"
+          style={{ opacity: 0 }}
         >
+          <span className="bbb-corner tl" />
+          <span className="bbb-corner tr" />
+          <span className="bbb-corner bl" />
+          <span className="bbb-corner br" />
           {slot.label.toUpperCase()}
         </div>
       </Html>
