@@ -73,3 +73,35 @@ canvas {
 .bbb-flicker {
   animation: bbb-flicker 4.2s infinite steps(1, end);
 }
+
+/* ── Glitch transition overlay ─────────────────────────────────────────────── */
+
+@keyframes bbb-glitch-overlay {
+  0%   { background: transparent; }
+  6%   { background: rgba(255,255,255,0.32); clip-path: inset(0 0 72% 0); }
+  10%  { background: rgba(220,38,38,0.18); clip-path: none; }
+  15%  { background: rgba(255,255,255,0.22); clip-path: inset(38% 0 42% 0); }
+  20%  { background: rgba(57,255,20,0.08); clip-path: none; }
+  28%  { background: rgba(255,255,255,0.14); clip-path: inset(70% 0 10% 0); }
+  35%  { background: rgba(0,0,0,0.55); clip-path: none; }
+  50%  { background: rgba(0,0,0,0.22); }
+  70%  { background: rgba(0,0,0,0.06); }
+  100% { background: transparent; }
+}
+
+/* ── Glitch effect applied to the canvas wrapper ───────────────────────────── */
+
+@keyframes bbb-canvas-glitch {
+  0%   { filter: none;                           transform: none; }
+  7%   { filter: brightness(1.7) saturate(0);    transform: translate(-5px, 0); }
+  11%  { filter: none;                           transform: translate(0, 0); }
+  17%  { filter: brightness(0.65) saturate(2.5); transform: translate(4px, -2px); }
+  21%  { filter: none;                           transform: translate(0, 0); }
+  29%  { filter: brightness(1.25);               transform: translate(-2px, 0); }
+  36%  { filter: none;                           transform: translate(0, 0); }
+  100% { filter: none;                           transform: none; }
+}
+
+.bbb-canvas-glitching {
+  animation: bbb-canvas-glitch 0.7s ease-out forwards;
+}

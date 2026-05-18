@@ -40,6 +40,10 @@ interface ParticleRingProps {
 const SLOT_HALF_ARC = 0.42;
 const BUTTON_W = 1.95;
 const BUTTON_H = 0.52;
+/** Radial spread — gives rings visible volume instead of a hairline. */
+const RING_THICKNESS = 0.13;
+/** Vertical scatter so the ring isn't perfectly flat. */
+const RING_Y_SPREAD = 0.055;
 
 // ─── Geometry builder ─────────────────────────────────────────────────────────
 
@@ -54,16 +58,19 @@ function buildRingGeometry(
 
   for (let i = 0; i < count; i++) {
     const theta = (i / count) * Math.PI * 2;
-    const x = radius * Math.cos(theta);
-    const z = radius * Math.sin(theta);
+    // Radial jitter gives the ring visible tube-like volume.
+    const r = radius + (Math.random() - 0.5) * RING_THICKNESS;
+    const x = r * Math.cos(theta);
+    const z = r * Math.sin(theta);
+    const y = (Math.random() - 0.5) * RING_Y_SPREAD;
 
     ringPos[i * 3 + 0] = x;
-    ringPos[i * 3 + 1] = 0;
+    ringPos[i * 3 + 1] = y;
     ringPos[i * 3 + 2] = z;
 
     // Default: rect = ring (particle doesn't move).
     rectPos[i * 3 + 0] = x;
-    rectPos[i * 3 + 1] = 0;
+    rectPos[i * 3 + 1] = y;
     rectPos[i * 3 + 2] = z;
 
     for (const slot of slots) {
@@ -154,14 +161,14 @@ function SlotElement({ slot, radius, morphRef, onEnter, onLeave, onClick }: Slot
             fontSize: '10px',
             fontWeight: 700,
             letterSpacing: '0.22em',
-            color: '#39ff14',
-            textShadow: '0 0 12px rgba(57,255,20,0.9), 0 0 4px rgba(57,255,20,0.6)',
-            background: 'rgba(255,255,255,0.045)',
-            backdropFilter: 'blur(10px)',
-            WebkitBackdropFilter: 'blur(10px)',
-            border: '1px solid rgba(57,255,20,0.38)',
+            color: 'rgba(255,255,255,0.92)',
+            textShadow: '0 0 10px rgba(255,255,255,0.5)',
+            background: 'rgba(255,255,255,0.07)',
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)',
+            border: '1px solid rgba(255,255,255,0.22)',
             boxShadow:
-              '0 0 18px rgba(57,255,20,0.14), inset 0 0 14px rgba(57,255,20,0.06)',
+              '0 0 20px rgba(255,255,255,0.06), inset 0 0 12px rgba(255,255,255,0.04)',
             padding: '7px 20px',
             whiteSpace: 'nowrap',
             userSelect: 'none',
@@ -179,7 +186,7 @@ function SlotElement({ slot, radius, morphRef, onEnter, onLeave, onClick }: Slot
 
 export function ParticleRing({
   radius,
-  particleCount = 1200,
+  particleCount = 4000,
   rotationSpeed,
   slots,
 }: ParticleRingProps) {
@@ -207,6 +214,8 @@ export function ParticleRing({
   useEffect(() => {
     materialRef.current = material;
     return () => {
+      // Kill all in-flight tweens before geometry/material are disposed.
+      Object.values(tweenRefs.current).forEach(t => t?.kill());
       geometry.dispose();
       material.dispose();
     };
