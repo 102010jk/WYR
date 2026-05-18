@@ -1,5 +1,6 @@
 import { Canvas } from '@react-three/fiber';
 import { Starfield } from './Starfield';
+import { LandingScene } from './landing/LandingScene';
 import { SCENE } from '../lib/constants';
 
 /**
@@ -32,6 +33,7 @@ export function SceneCanvas() {
     >
       <color attach="background" args={['#000000']} />
       <Starfield />
+      <LandingScene />
     </Canvas>
   );
 }

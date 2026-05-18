@@ -22,7 +22,8 @@ export const SCENE = {
   CAMERA_FOV: 55,
   CAMERA_NEAR: 0.1,
   CAMERA_FAR: 200,
-  CAMERA_LANDING_POS: [0, 0, 8] as const,
+  /** Slight overhead angle so the flat XZ rings read as 3D circles rather than lines. */
+  CAMERA_LANDING_POS: [0, 2.2, 7.5] as const,
 } as const;
 
 export const TRANSITION = {
