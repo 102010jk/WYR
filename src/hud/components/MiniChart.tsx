@@ -1,3 +1,6 @@
+import { useEffect, useRef } from 'react';
+import { anime, EASE } from '../../animations/anime';
+
 interface MiniChartProps {
   data: { x: number; y: number }[];
   title: string;
@@ -10,9 +13,9 @@ interface MiniChartProps {
 }
 
 /**
- * Lightweight SVG line + area chart. Replaces Recharts to keep the bundle
- * small. Renders a path through normalised data points, with a subtle filled
- * area under the curve and grid lines.
+ * Lightweight SVG line + area chart. The line draws itself in via
+ * `stroke-dashoffset` (anime.js) every time the data changes, so updates
+ * look intentional instead of "popping".
  */
 export function MiniChart({
   data,
@@ -23,7 +26,7 @@ export function MiniChart({
   height = 130,
   color = '#39ff14',
 }: MiniChartProps) {
-  if (data.length < 2) return null;
+  const lineRef = useRef<SVGPathElement>(null);
 
   const pad = { l: 28, r: 8, t: 18, b: 22 };
   const w = width - pad.l - pad.r;
@@ -46,11 +49,27 @@ export function MiniChart({
 
   const gridYs = [0.25, 0.5, 0.75];
 
+  // Animate path drawing on data change.
+  useEffect(() => {
+    if (data.length < 2 || !lineRef.current) return;
+    const len = lineRef.current.getTotalLength();
+    lineRef.current.style.strokeDasharray = `${len}`;
+    lineRef.current.style.strokeDashoffset = `${len}`;
+    const anim = anime({
+      targets: lineRef.current,
+      strokeDashoffset: [len, 0],
+      duration: 540,
+      easing: EASE.outExpo,
+    });
+    return () => anim.pause();
+  }, [data]);
+
+  if (data.length < 2) return null;
+
   return (
     <div style={{ width, fontFamily: 'var(--font-terminal)', color: 'rgba(57,255,20,0.55)' }}>
       <div style={{ fontSize: 14, marginBottom: 4, letterSpacing: '0.1em' }}>{title}</div>
       <svg width={width} height={height} style={{ display: 'block' }}>
-        {/* Border */}
         <rect
           x={pad.l}
           y={pad.t}
@@ -60,7 +79,6 @@ export function MiniChart({
           stroke="rgba(57,255,20,0.18)"
           strokeWidth={1}
         />
-        {/* Grid */}
         {gridYs.map((g, i) => (
           <line
             key={i}
@@ -72,25 +90,17 @@ export function MiniChart({
             strokeWidth={1}
           />
         ))}
-        {/* Area fill */}
         <path d={areaPath} fill={color} fillOpacity={0.12} />
-        {/* Line */}
         <path
+          ref={lineRef}
           d={linePath}
           fill="none"
           stroke={color}
           strokeWidth={1.5}
           style={{ filter: `drop-shadow(0 0 4px ${color}99)` }}
         />
-        {/* Axis labels */}
         {xLabel && (
-          <text
-            x={pad.l + w / 2}
-            y={height - 4}
-            fontSize={11}
-            fill="rgba(57,255,20,0.4)"
-            textAnchor="middle"
-          >
+          <text x={pad.l + w / 2} y={height - 4} fontSize={11} fill="rgba(57,255,20,0.4)" textAnchor="middle">
             {xLabel}
           </text>
         )}
@@ -106,7 +116,6 @@ export function MiniChart({
             {yLabel}
           </text>
         )}
-        {/* Y-axis tick at top */}
         <text x={pad.l - 4} y={pad.t + 4} fontSize={9} fill="rgba(57,255,20,0.4)" textAnchor="end">
           {Math.round(yMax)}
         </text>

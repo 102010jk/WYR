@@ -2,6 +2,7 @@ import { useCartStore, isModeAllowed, type CartItem } from '../../state/cartStor
 import { WEAPON_MAP } from '../../data/weapons';
 import { CATEGORY_MAP } from '../../data/categories';
 import type { DeploymentMode } from '../../data/types';
+import { useStaggerIn } from '../../animations/useStaggerIn';
 import { GlassPanel } from '../components/GlassPanel';
 import { TerminalText } from '../components/TerminalText';
 import { RedAlertButton } from '../components/RedAlertButton';
@@ -295,6 +296,7 @@ export function CartOverlay() {
   const items = useCartStore((s) => s.items);
   const targetPickingId = useCartStore((s) => s.targetPickingRowId);
   const executePurchase = useCartStore((s) => s.executePurchase);
+  const rootRef = useStaggerIn<HTMLDivElement>([targetPickingId === null]);
 
   const total = items.reduce((sum, item) => {
     const w = WEAPON_MAP.get(item.weaponId);
@@ -314,6 +316,7 @@ export function CartOverlay() {
   return (
     <>
       <div
+        ref={rootRef}
         style={{
           position: 'fixed',
           top: 72,
@@ -327,6 +330,7 @@ export function CartOverlay() {
         }}
       >
         <GlassPanel
+          data-bbb-stagger
           style={{
             width: '100%',
             maxWidth: 720,

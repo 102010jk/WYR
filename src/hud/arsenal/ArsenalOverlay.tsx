@@ -4,6 +4,7 @@ import { WEAPONS_BY_CATEGORY, WEAPON_MAP } from '../../data/weapons';
 import { useArsenalStore } from '../../state/arsenalStore';
 import { useCartStore } from '../../state/cartStore';
 import { useGlitchTransition } from '../../transitions/useGlitchTransition';
+import { useStaggerIn } from '../../animations/useStaggerIn';
 import { GlassPanel } from '../components/GlassPanel';
 import { TerminalText } from '../components/TerminalText';
 import { DataReadout } from '../components/DataReadout';
@@ -202,9 +203,11 @@ export function ArsenalOverlay() {
     () => (selectedId ? WEAPON_MAP.get(selectedId) ?? null : null),
     [selectedId],
   );
+  const rootRef = useStaggerIn<HTMLDivElement>();
 
   return (
     <div
+      ref={rootRef}
       style={{
         position: 'fixed',
         top: 72,
@@ -218,6 +221,7 @@ export function ArsenalOverlay() {
       }}
     >
       <GlassPanel
+        data-bbb-stagger
         style={{
           width: '100%',
           maxWidth: 1100,
@@ -230,6 +234,7 @@ export function ArsenalOverlay() {
       >
         {/* Left: category accordion */}
         <div
+          data-bbb-stagger
           style={{
             borderRight: '1px solid rgba(57,255,20,0.12)',
             padding: '18px 12px',
@@ -243,7 +248,7 @@ export function ArsenalOverlay() {
         </div>
 
         {/* Right: details */}
-        <div style={{ padding: '24px 32px', overflowY: 'auto' }}>
+        <div data-bbb-stagger style={{ padding: '24px 32px', overflowY: 'auto' }}>
           {selectedWeapon ? (
             <WeaponDetails weapon={selectedWeapon} />
           ) : (

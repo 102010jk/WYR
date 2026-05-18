@@ -29,7 +29,7 @@ export function RedAlertButton({
           : 'rgba(220,38,38,0.16)',
         border: `1px solid ${disabled ? 'rgba(220,38,38,0.3)' : 'rgba(220,38,38,0.7)'}`,
         color: disabled ? 'rgba(220,38,38,0.5)' : '#ff6b6b',
-        textShadow: '0 0 10px rgba(220,38,38,0.65)',
+        textShadow: 'var(--bbb-glow-crimson-default)',
         fontFamily: 'var(--font-display)',
         fontSize: 13,
         fontWeight: 700,

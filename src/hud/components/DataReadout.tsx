@@ -33,8 +33,8 @@ export function DataReadout({ label, value, unit, emphasis = false, style }: Dat
         style={{
           color: emphasis ? 'var(--color-bbb-crimson)' : 'var(--color-bbb-green)',
           textShadow: emphasis
-            ? '0 0 8px rgba(220,38,38,0.7)'
-            : '0 0 6px rgba(57,255,20,0.5)',
+            ? 'var(--bbb-glow-crimson-default)'
+            : 'var(--bbb-glow-green-default)',
           letterSpacing: '0.04em',
         }}
       >

@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useAppStore, type AppState } from '../../state/appStore';
 import { useGlitchTransition } from '../../transitions/useGlitchTransition';
 import { sfx } from '../../audio/sfx';
+import { BbbMonogram } from '../components/BbbMonogram';
 
 interface NavOption {
   label: string;
@@ -55,18 +56,28 @@ export function HorizontalCompass() {
       <div
         style={{
           position: 'absolute',
-          left: 18,
+          left: 14,
           top: '50%',
           transform: 'translateY(-50%)',
-          fontFamily: 'var(--font-display)',
-          fontSize: 13,
-          letterSpacing: '0.32em',
-          color: 'rgba(57,255,20,0.7)',
-          textShadow: '0 0 8px rgba(57,255,20,0.6)',
-          fontWeight: 700,
+          color: 'rgba(57,255,20,0.85)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          filter: 'drop-shadow(var(--bbb-glow-green-subtle))',
         }}
       >
-        BBB ::
+        <BbbMonogram size={26} />
+        <span
+          style={{
+            fontFamily: 'var(--font-display)',
+            fontSize: 'var(--bbb-text-xs)',
+            letterSpacing: '0.34em',
+            fontWeight: 700,
+            color: 'rgba(57,255,20,0.7)',
+          }}
+        >
+          BIG BOYS BOMBS
+        </span>
       </div>
 
       {/* Options */}
@@ -102,18 +113,18 @@ function CompassButton({ option, onClick }: { option: NavOption; onClick: () => 
         padding: '10px 18px',
         cursor: 'pointer',
         pointerEvents: 'auto',
-        textShadow: '0 0 6px rgba(57,255,20,0.25)',
+        textShadow: 'var(--bbb-glow-green-subtle)',
         transition: 'color 0.15s, text-shadow 0.15s, background 0.15s',
         position: 'relative',
       }}
       onMouseOver={(e) => {
         e.currentTarget.style.color = 'var(--color-bbb-green)';
-        e.currentTarget.style.textShadow = '0 0 12px rgba(57,255,20,0.9), 0 0 3px rgba(57,255,20,0.5)';
+        e.currentTarget.style.textShadow = 'var(--bbb-glow-green-default)';
         e.currentTarget.style.background = 'rgba(57,255,20,0.06)';
       }}
       onMouseOut={(e) => {
         e.currentTarget.style.color = 'rgba(57,255,20,0.55)';
-        e.currentTarget.style.textShadow = '0 0 6px rgba(57,255,20,0.25)';
+        e.currentTarget.style.textShadow = 'var(--bbb-glow-green-subtle)';
         e.currentTarget.style.background = 'transparent';
       }}
     >

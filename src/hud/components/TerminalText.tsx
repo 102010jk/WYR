@@ -14,7 +14,7 @@ export function TerminalText({ children, dim = false, style }: TerminalTextProps
       style={{
         fontFamily: 'var(--font-terminal)',
         color: dim ? 'rgba(57,255,20,0.45)' : 'var(--color-bbb-green)',
-        textShadow: dim ? 'none' : '0 0 6px rgba(57,255,20,0.5)',
+        textShadow: dim ? 'none' : 'var(--bbb-glow-green-default)',
         letterSpacing: '0.05em',
         ...style,
       }}

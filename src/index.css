@@ -13,6 +13,44 @@
   --font-display: 'Orbitron', ui-sans-serif, system-ui, sans-serif;
 }
 
+/* ── Design tokens — single source of truth for glow/spacing/typography ──── */
+
+:root {
+  /* Glow hierarchy — three intensities for all text-shadow / box-shadow */
+  --bbb-glow-subtle:   0 0 6px rgba(255, 255, 255, 0.35);
+  --bbb-glow-default:  0 0 12px rgba(255, 255, 255, 0.65), 0 0 3px rgba(255, 255, 255, 0.35);
+  --bbb-glow-emphasis: 0 0 22px rgba(255, 255, 255, 0.85), 0 0 6px rgba(255, 255, 255, 0.55);
+
+  /* Green variants (terminal HUD) */
+  --bbb-glow-green-subtle:   0 0 8px rgba(57, 255, 20, 0.40);
+  --bbb-glow-green-default:  0 0 14px rgba(57, 255, 20, 0.70), 0 0 4px rgba(57, 255, 20, 0.40);
+  --bbb-glow-green-emphasis: 0 0 26px rgba(57, 255, 20, 0.95), 0 0 7px rgba(57, 255, 20, 0.55);
+
+  /* Crimson (danger) */
+  --bbb-glow-crimson-subtle:   0 0 8px rgba(220, 38, 38, 0.45);
+  --bbb-glow-crimson-default:  0 0 14px rgba(220, 38, 38, 0.75), 0 0 4px rgba(220, 38, 38, 0.45);
+  --bbb-glow-crimson-emphasis: 0 0 28px rgba(220, 38, 38, 0.95), 0 0 8px rgba(220, 38, 38, 0.60);
+
+  /* Surface shadows (panels) */
+  --bbb-shadow-panel: 0 0 60px rgba(0, 0, 0, 0.55), 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+
+  /* Type scale */
+  --bbb-text-xs:  12px;
+  --bbb-text-sm:  14px;
+  --bbb-text-md:  16px;
+  --bbb-text-lg:  20px;
+  --bbb-text-xl:  26px;
+  --bbb-text-2xl: 36px;
+
+  /* Spacing scale */
+  --bbb-space-1:  4px;
+  --bbb-space-2:  8px;
+  --bbb-space-3: 12px;
+  --bbb-space-4: 16px;
+  --bbb-space-5: 24px;
+  --bbb-space-6: 40px;
+}
+
 html,
 body,
 #root {
@@ -140,4 +178,117 @@ canvas {
 @keyframes bbb-fund-bg {
   from { background: rgba(60,0,0,0.55); }
   to   { background: rgba(120,0,0,0.35); }
+}
+
+/* ── CRT scanlines + corner vignette — global unifying layer ─────────────── */
+/* Lives between the 3D canvas (z:0) and the HUD overlays (z:10). Faint
+ * 2-px horizontal scanline gradient + radial corner darkening. */
+.bbb-crt {
+  position: fixed;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+  background-image:
+    radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.55) 100%),
+    repeating-linear-gradient(
+      to bottom,
+      rgba(255,255,255,0.020) 0px,
+      rgba(255,255,255,0.020) 1px,
+      transparent 1px,
+      transparent 3px
+    );
+  mix-blend-mode: normal;
+}
+
+/* Subtle screen flicker — multiplies onto the scanline layer. */
+.bbb-crt::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.012);
+  animation: bbb-crt-flicker 6s steps(2, end) infinite;
+}
+@keyframes bbb-crt-flicker {
+  0%, 95%, 100% { opacity: 1; }
+  96%           { opacity: 0.85; }
+  97%           { opacity: 1; }
+  98%           { opacity: 0.92; }
+}
+
+/* ── Boot sequence ───────────────────────────────────────────────────────── */
+
+.bbb-boot-root {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: #000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+  cursor: pointer;
+  user-select: none;
+  overflow: hidden;
+}
+
+.bbb-boot-scanlines {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background-image:
+    radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,0.85) 100%),
+    repeating-linear-gradient(
+      to bottom,
+      rgba(57, 255, 20, 0.06) 0px,
+      rgba(57, 255, 20, 0.06) 1px,
+      transparent 1px,
+      transparent 3px
+    );
+  pointer-events: none;
+}
+
+.bbb-boot-logo {
+  display: flex;
+  gap: 6px;
+  margin-bottom: var(--bbb-space-6);
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 92px;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.96);
+  text-shadow: var(--bbb-glow-emphasis);
+}
+
+.bbb-boot-logo span {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(18px);
+}
+
+.bbb-boot-terminal {
+  font-family: var(--font-terminal);
+  font-size: var(--bbb-text-lg);
+  letter-spacing: 0.12em;
+  color: var(--color-bbb-green);
+  text-shadow: var(--bbb-glow-green-default);
+  min-height: calc(var(--bbb-text-lg) * 4 * 1.4);
+  width: min(640px, 80vw);
+  text-align: left;
+}
+
+.bbb-boot-terminal .line {
+  display: block;
+  opacity: 0;
+  white-space: pre;
+}
+
+.bbb-boot-skip-hint {
+  position: absolute;
+  bottom: 28px;
+  font-family: var(--font-terminal);
+  font-size: var(--bbb-text-xs);
+  letter-spacing: 0.32em;
+  color: rgba(57, 255, 20, 0.45);
+  opacity: 0;
 }

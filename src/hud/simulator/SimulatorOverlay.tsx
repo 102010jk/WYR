@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useSimulatorStore } from '../../state/simulatorStore';
 import { WEAPON_MAP } from '../../data/weapons';
+import { useStaggerIn } from '../../animations/useStaggerIn';
 import { WeaponPalette } from './WeaponPalette';
 import { LiveAnalytics } from './LiveAnalytics';
 
@@ -21,10 +22,13 @@ export function SimulatorOverlay() {
     }
   }, [setActive]);
 
+  const rootRef = useStaggerIn<HTMLDivElement>();
+
   return (
-    <>
+    <div ref={rootRef}>
       {/* Status banner */}
       <div
+        data-bbb-stagger
         style={{
           position: 'fixed',
           top: 64,
@@ -36,12 +40,12 @@ export function SimulatorOverlay() {
           background: 'rgba(0,0,0,0.65)',
           border: `1px solid ${activeWeapon ? 'rgba(220,38,38,0.55)' : 'rgba(57,255,20,0.3)'}`,
           fontFamily: 'var(--font-terminal)',
-          fontSize: 16,
+          fontSize: 'var(--bbb-text-md)',
           letterSpacing: '0.16em',
           color: activeWeapon ? '#ff7575' : 'rgba(57,255,20,0.7)',
           textShadow: activeWeapon
-            ? '0 0 12px rgba(220,38,38,0.7)'
-            : '0 0 8px rgba(57,255,20,0.5)',
+            ? 'var(--bbb-glow-crimson-default)'
+            : 'var(--bbb-glow-green-subtle)',
         }}
       >
         {activeWeapon
@@ -51,6 +55,7 @@ export function SimulatorOverlay() {
 
       {/* Left palette */}
       <div
+        data-bbb-stagger
         style={{
           position: 'fixed',
           left: 18,
@@ -66,6 +71,7 @@ export function SimulatorOverlay() {
 
       {/* Right analytics */}
       <div
+        data-bbb-stagger
         style={{
           position: 'fixed',
           right: 18,
@@ -76,6 +82,6 @@ export function SimulatorOverlay() {
       >
         <LiveAnalytics />
       </div>
-    </>
+    </div>
   );
 }

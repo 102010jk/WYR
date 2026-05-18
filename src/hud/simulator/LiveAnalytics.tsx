@@ -1,61 +1,104 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSimulatorStore } from '../../state/simulatorStore';
+import { countUp, EASE } from '../../animations/anime';
 import { GlassPanel } from '../components/GlassPanel';
 import { TerminalText } from '../components/TerminalText';
-import { DataReadout } from '../components/DataReadout';
 import { MiniChart } from '../components/MiniChart';
 
 const fmtNum = new Intl.NumberFormat('en-US');
 const fmtUsd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 
 /**
- * Animated count-up: lerps a displayed value toward a target each RAF tick.
- * Returns the rounded current value as React state — re-renders only when the
- * integer part changes (cheap).
+ * Drives `target.textContent` with anime.js whenever `value` changes.
+ * Smoother than the previous lerp-on-RAF hook and avoids per-frame React renders.
  */
-function useAnimatedNumber(target: number, speed = 0.18) {
-  const [displayed, setDisplayed] = useState(target);
-  const valueRef = useRef(target);
-  const lastDisplayedRef = useRef(target);
-
+function useAnimeCountUp(
+  value: number,
+  ref: React.RefObject<HTMLElement>,
+  format: (n: number) => string,
+) {
+  const prevRef = useRef(value);
   useEffect(() => {
-    let rafId: number;
-    const tick = () => {
-      const diff = target - valueRef.current;
-      valueRef.current += diff * speed;
-      if (Math.abs(diff) < 0.5) valueRef.current = target;
-      const rounded = Math.round(valueRef.current);
-      if (rounded !== lastDisplayedRef.current) {
-        lastDisplayedRef.current = rounded;
-        setDisplayed(rounded);
-      }
-      if (valueRef.current !== target) {
-        rafId = requestAnimationFrame(tick);
-      }
-    };
-    rafId = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafId);
-  }, [target, speed]);
+    if (!ref.current) return;
+    const from = prevRef.current;
+    const to = value;
+    prevRef.current = to;
+    if (from === to) {
+      ref.current.textContent = format(to);
+      return;
+    }
+    const anim = countUp(ref.current, from, to, {
+      duration: 720,
+      format,
+      easing: EASE.outCubic,
+    });
+    return () => anim.pause();
+  }, [value, format, ref]);
+}
 
-  return displayed;
+// Animated number readout — a single row, slightly richer than DataReadout
+// because it has to expose a ref to its <span>.
+function AnimatedReadout({
+  label,
+  value,
+  format,
+  emphasis = false,
+  unit,
+}: {
+  label: string;
+  value: number;
+  format: (n: number) => string;
+  emphasis?: boolean;
+  unit?: string;
+}) {
+  const ref = useRef<HTMLSpanElement>(null);
+  useAnimeCountUp(value, ref, format);
+  return (
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'baseline',
+        gap: 12,
+        padding: '6px 0',
+        borderBottom: '1px solid rgba(57,255,20,0.08)',
+        fontFamily: 'var(--font-terminal)',
+        fontSize: 'var(--bbb-text-md)',
+      }}
+    >
+      <span style={{ color: 'rgba(57,255,20,0.5)', letterSpacing: '0.08em' }}>{label}</span>
+      <span
+        style={{
+          color: emphasis ? 'var(--color-bbb-crimson)' : 'var(--color-bbb-green)',
+          textShadow: emphasis
+            ? 'var(--bbb-glow-crimson-default)'
+            : 'var(--bbb-glow-green-default)',
+          letterSpacing: '0.04em',
+        }}
+      >
+        <span ref={ref}>{format(0)}</span>
+        {unit && <span style={{ marginLeft: 4, opacity: 0.6, fontSize: 14 }}>{unit}</span>}
+      </span>
+    </div>
+  );
 }
 
 export function LiveAnalytics() {
   const analytics = useSimulatorStore((s) => s.analytics);
   const reset = useSimulatorStore((s) => s.reset);
 
-  const casualties = useAnimatedNumber(analytics.casualties);
-  const cost = useAnimatedNumber(analytics.totalCostUsd, 0.12);
-
-  // History buffer for the casualties chart — appended each time analytics changes.
+  // History buffer for the casualties chart — appended each time shots changes.
   const [history, setHistory] = useState<{ x: number; y: number }[]>([{ x: 0, y: 0 }]);
+  const lastShotsRef = useRef(0);
   useEffect(() => {
-    setHistory((h) => {
-      const next = [...h, { x: h.length, y: analytics.casualties }];
-      // Keep last 32 samples.
-      return next.length > 32 ? next.slice(next.length - 32) : next;
-    });
-  }, [analytics.casualties, analytics.shots]);
+    if (analytics.shots !== lastShotsRef.current) {
+      lastShotsRef.current = analytics.shots;
+      setHistory((h) => {
+        const next = [...h, { x: h.length, y: analytics.casualties }];
+        return next.length > 32 ? next.slice(next.length - 32) : next;
+      });
+    }
+  }, [analytics.shots, analytics.casualties]);
 
   return (
     <GlassPanel
@@ -69,16 +112,21 @@ export function LiveAnalytics() {
       }}
     >
       <div style={{ paddingBottom: 10, borderBottom: '1px solid rgba(220,38,38,0.25)' }}>
-        <TerminalText style={{ fontSize: 18, color: 'var(--color-bbb-crimson)' }}>
+        <TerminalText style={{ fontSize: 'var(--bbb-text-lg)', color: 'var(--color-bbb-crimson)' }}>
           // BATTLE-DAMAGE ASSESSMENT
         </TerminalText>
       </div>
 
       <div>
-        <DataReadout label="SHOTS"       value={fmtNum.format(analytics.shots)} />
-        <DataReadout label="CASUALTIES"  value={fmtNum.format(casualties)} emphasis />
-        <DataReadout label="MAX RADIUS"  value={analytics.maxRadiusKm.toFixed(2)} unit="km" />
-        <DataReadout label="TOTAL COST"  value={fmtUsd.format(cost)} emphasis />
+        <AnimatedReadout label="SHOTS"      value={analytics.shots}        format={fmtNum.format} />
+        <AnimatedReadout label="CASUALTIES" value={analytics.casualties}   format={fmtNum.format} emphasis />
+        <AnimatedReadout
+          label="MAX RADIUS"
+          value={analytics.maxRadiusKm}
+          format={(n) => n.toFixed(2)}
+          unit="km"
+        />
+        <AnimatedReadout label="TOTAL COST" value={analytics.totalCostUsd} format={fmtUsd.format} emphasis />
       </div>
 
       <MiniChart
