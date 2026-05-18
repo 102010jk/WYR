@@ -1,6 +1,7 @@
 import { useCallback, useRef } from 'react';
 import { useAppStore, type AppState } from '../state/appStore';
 import { TRANSITION } from '../lib/constants';
+import { sfx } from '../audio/sfx';
 
 /**
  * Orchestrates the full glitch transition sequence:
@@ -21,6 +22,7 @@ export function useGlitchTransition() {
 
     const { setState, setTransitionPhase } = useAppStore.getState();
 
+    sfx.play('glitch');
     setTransitionPhase('glitching-out');
 
     const t1 = setTimeout(() => {

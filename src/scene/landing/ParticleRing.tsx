@@ -136,14 +136,15 @@ function SlotElement({ slot, radius, morphRef, onEnter, onLeave, onClick }: Slot
 
   return (
     <group position={pos}>
-      {/* Invisible plane that always faces the camera — used for hover detection. */}
+      {/* Invisible plane that always faces the camera — used for hover detection.
+          Substantially larger than the visible button so the moving target is easy to hit. */}
       <Billboard>
         <mesh
           onPointerEnter={onEnter}
           onPointerLeave={onLeave}
           onClick={onClick}
         >
-          <planeGeometry args={[BUTTON_W + 0.5, BUTTON_H + 0.45]} />
+          <planeGeometry args={[BUTTON_W + 2.6, BUTTON_H + 2.2]} />
           <meshBasicMaterial transparent opacity={0} depthWrite={false} />
         </mesh>
       </Billboard>
@@ -156,10 +157,6 @@ function SlotElement({ slot, radius, morphRef, onEnter, onLeave, onClick }: Slot
           className="bbb-ring-button"
           style={{ opacity: 0 }}
         >
-          <span className="bbb-corner tl" />
-          <span className="bbb-corner tr" />
-          <span className="bbb-corner bl" />
-          <span className="bbb-corner br" />
           {slot.label.toUpperCase()}
         </div>
       </Html>
@@ -178,6 +175,9 @@ export function ParticleRing({
   const groupRef = useRef<THREE.Group>(null);
   const materialRef = useRef<THREE.ShaderMaterial | null>(null);
   const tweenRefs = useRef<Record<number, gsap.core.Tween | null>>({});
+  /** Magnetic dampening — incremented on enter, decremented on leave. While >0 the ring nearly stops, so a moving button is easy to click. */
+  const hoverCountRef = useRef(0);
+  const speedFactorRef = useRef(1);
 
   // One mutable ref per slot — GSAP tweens `.current` directly, SlotElement reads it in useFrame.
   const morphRefs = useMemo<Record<number, MutableRefObject<number>>>(() => {
@@ -221,14 +221,15 @@ export function ParticleRing({
 
   const handleEnter = useCallback(
     (slotIndex: number) => {
+      hoverCountRef.current += 1;
       useNavigationStore.getState().setHovered(slots.find(s => s.slotIndex === slotIndex)?.appTarget ?? null);
       if (tweenRefs.current[slotIndex]) tweenRefs.current[slotIndex]!.kill();
       const morphRef = morphRefs[slotIndex];
       const target = { v: morphRef.current };
       tweenRefs.current[slotIndex] = gsap.to(target, {
         v: 1,
-        duration: 0.38,
-        ease: 'power2.out',
+        duration: 0.32,
+        ease: 'power3.out',
         onUpdate() {
           morphRef.current = target.v;
           setUniform(slotIndex, target.v);
@@ -240,13 +241,14 @@ export function ParticleRing({
 
   const handleLeave = useCallback(
     (slotIndex: number) => {
+      hoverCountRef.current = Math.max(0, hoverCountRef.current - 1);
       useNavigationStore.getState().setHovered(null);
       if (tweenRefs.current[slotIndex]) tweenRefs.current[slotIndex]!.kill();
       const morphRef = morphRefs[slotIndex];
       const target = { v: morphRef.current };
       tweenRefs.current[slotIndex] = gsap.to(target, {
         v: 0,
-        duration: 0.38,
+        duration: 0.45,
         ease: 'power2.in',
         onUpdate() {
           morphRef.current = target.v;
@@ -268,8 +270,11 @@ export function ParticleRing({
   );
 
   useFrame((_, delta) => {
+    // Magnetic dampening: target factor is 0.08 while any slot is hovered, 1 otherwise.
+    const targetFactor = hoverCountRef.current > 0 ? 0.08 : 1;
+    speedFactorRef.current += (targetFactor - speedFactorRef.current) * Math.min(1, delta * 8);
     if (groupRef.current) {
-      groupRef.current.rotation.y += rotationSpeed * delta;
+      groupRef.current.rotation.y += rotationSpeed * delta * speedFactorRef.current;
     }
   });
 

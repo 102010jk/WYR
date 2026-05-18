@@ -3,6 +3,7 @@ import { Starfield } from './Starfield';
 import { LandingScene } from './landing/LandingScene';
 import { CameraRig } from './CameraRig';
 import { CartEarthScene } from '../hud/cart/CartEarthScene';
+import { SimulatorEarthScene } from './earth/SimulatorEarthScene';
 import { useAppStore } from '../state/appStore';
 import { SCENE } from '../lib/constants';
 
@@ -43,6 +44,7 @@ export function SceneCanvas() {
         <Starfield />
         {appState === 'landing' && <LandingScene />}
         {appState === 'hud.cart' && <CartEarthScene />}
+        {appState === 'hud.simulator' && <SimulatorEarthScene />}
         <CameraRig />
       </Canvas>
     </div>

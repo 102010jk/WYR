@@ -1,8 +1,12 @@
 import { useMemo } from 'react';
 import { useAppStore, type AppState } from '../../state/appStore';
 import { useGlitchTransition } from '../../transitions/useGlitchTransition';
-import { useScrollCompass, COMPASS_OPTION_WIDTH } from './useScrollCompass';
-import { CompassTick, type NavOption } from './CompassTick';
+import { sfx } from '../../audio/sfx';
+
+interface NavOption {
+  label: string;
+  target: AppState;
+}
 
 const ALL_OPTIONS: NavOption[] = [
   { label: 'ARSENAL',     target: 'hud.arsenal' },
@@ -13,9 +17,10 @@ const ALL_OPTIONS: NavOption[] = [
 ];
 
 /**
- * Top-mounted retro green compass bar.
- * Visible only in HUD states. Active page is excluded from options.
- * Scroll anywhere rotates the strip; clicking a tick triggers the glitch transition.
+ * Top navigation bar — flat, predictable, always-visible horizontal row.
+ * Replaced the scroll-driven carousel because the sliding strip was making
+ * clicks miss their targets. KISS: every option is a clickable button,
+ * styled to evoke a retro CRT terminal HUD.
  */
 export function HorizontalCompass() {
   const appState = useAppStore(s => s.state);
@@ -26,10 +31,6 @@ export function HorizontalCompass() {
     [appState],
   );
 
-  const { stripRef, activeIdx } = useScrollCompass(options.length);
-
-  const initialTx = window.innerWidth / 2 - COMPASS_OPTION_WIDTH / 2;
-
   return (
     <div
       style={{
@@ -37,57 +38,86 @@ export function HorizontalCompass() {
         top: 0,
         left: 0,
         right: 0,
-        height: 52,
+        height: 54,
         zIndex: 20,
         pointerEvents: 'none',
-        overflow: 'hidden',
-        background: 'rgba(0,0,0,0.72)',
-        backdropFilter: 'blur(6px)',
-        WebkitBackdropFilter: 'blur(6px)',
-        borderBottom: '1px solid rgba(57,255,20,0.18)',
+        background: 'linear-gradient(to bottom, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.55) 100%)',
+        backdropFilter: 'blur(5px)',
+        WebkitBackdropFilter: 'blur(5px)',
+        borderBottom: '1px solid rgba(57,255,20,0.2)',
         display: 'flex',
         alignItems: 'center',
+        justifyContent: 'center',
+        gap: 4,
       }}
     >
-      {/* Active-tick indicator: fixed vertical bars at viewport centre */}
+      {/* Left brand mark */}
       <div
         style={{
           position: 'absolute',
-          left: '50%',
-          top: 0,
-          bottom: 0,
-          width: COMPASS_OPTION_WIDTH,
-          transform: 'translateX(-50%)',
-          borderLeft: '1px solid rgba(57,255,20,0.28)',
-          borderRight: '1px solid rgba(57,255,20,0.28)',
-          background: 'rgba(57,255,20,0.04)',
-          pointerEvents: 'none',
-        }}
-      />
-
-      {/* Scrolling strip — position updated every frame via DOM ref */}
-      <div
-        ref={stripRef}
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          display: 'flex',
-          height: '100%',
-          willChange: 'transform',
-          transform: `translateX(${initialTx}px)`,
-          pointerEvents: 'none',
+          left: 18,
+          top: '50%',
+          transform: 'translateY(-50%)',
+          fontFamily: 'var(--font-display)',
+          fontSize: 13,
+          letterSpacing: '0.32em',
+          color: 'rgba(57,255,20,0.7)',
+          textShadow: '0 0 8px rgba(57,255,20,0.6)',
+          fontWeight: 700,
         }}
       >
-        {options.map((opt, i) => (
-          <CompassTick
-            key={opt.target}
-            option={opt}
-            isActive={i === activeIdx}
-            onClick={() => triggerGlitch(opt.target as AppState)}
-          />
-        ))}
+        BBB ::
       </div>
+
+      {/* Options */}
+      {options.map((opt) => (
+        <CompassButton
+          key={opt.target}
+          option={opt}
+          onClick={() => {
+            sfx.play('click');
+            triggerGlitch(opt.target);
+          }}
+        />
+      ))}
     </div>
+  );
+}
+
+// ─── A single nav button ─────────────────────────────────────────────────────
+
+function CompassButton({ option, onClick }: { option: NavOption; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => sfx.play('hoverBeep')}
+      style={{
+        appearance: 'none',
+        background: 'transparent',
+        border: 'none',
+        color: 'rgba(57,255,20,0.55)',
+        fontFamily: 'var(--font-terminal)',
+        fontSize: 18,
+        letterSpacing: '0.14em',
+        padding: '10px 18px',
+        cursor: 'pointer',
+        pointerEvents: 'auto',
+        textShadow: '0 0 6px rgba(57,255,20,0.25)',
+        transition: 'color 0.15s, text-shadow 0.15s, background 0.15s',
+        position: 'relative',
+      }}
+      onMouseOver={(e) => {
+        e.currentTarget.style.color = 'var(--color-bbb-green)';
+        e.currentTarget.style.textShadow = '0 0 12px rgba(57,255,20,0.9), 0 0 3px rgba(57,255,20,0.5)';
+        e.currentTarget.style.background = 'rgba(57,255,20,0.06)';
+      }}
+      onMouseOut={(e) => {
+        e.currentTarget.style.color = 'rgba(57,255,20,0.55)';
+        e.currentTarget.style.textShadow = '0 0 6px rgba(57,255,20,0.25)';
+        e.currentTarget.style.background = 'transparent';
+      }}
+    >
+      {option.label}
+    </button>
   );
 }

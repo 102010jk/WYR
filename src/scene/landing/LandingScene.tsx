@@ -25,7 +25,7 @@ export function LandingScene() {
   return (
     <group>
       <WireframeCube />
-      <ParticleRing radius={3.4} particleCount={7000} rotationSpeed={0.11} slots={slots} />
+      <ParticleRing radius={4.6} particleCount={9000} rotationSpeed={0.09} slots={slots} />
     </group>
   );
 }

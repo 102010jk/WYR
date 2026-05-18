@@ -16,13 +16,13 @@ export function GlassPanel({ children, style, className }: GlassPanelProps) {
     <div
       className={className}
       style={{
-        background: 'rgba(255,255,255,0.04)',
-        backdropFilter: 'blur(14px)',
-        WebkitBackdropFilter: 'blur(14px)',
-        border: '1px solid rgba(255,255,255,0.1)',
-        boxShadow: '0 0 40px rgba(0,0,0,0.6), inset 0 0 20px rgba(255,255,255,0.02)',
+        background: 'rgba(0,0,0,0.32)',
+        backdropFilter: 'blur(4px) saturate(115%)',
+        WebkitBackdropFilter: 'blur(4px) saturate(115%)',
+        border: '1px solid rgba(255,255,255,0.07)',
+        boxShadow: '0 0 60px rgba(0,0,0,0.55)',
         backgroundImage:
-          'repeating-linear-gradient(0deg, rgba(255,255,255,0.018) 0px, rgba(255,255,255,0.018) 1px, transparent 1px, transparent 4px)',
+          'repeating-linear-gradient(0deg, rgba(255,255,255,0.012) 0px, rgba(255,255,255,0.012) 1px, transparent 1px, transparent 4px)',
         ...style,
       }}
     >

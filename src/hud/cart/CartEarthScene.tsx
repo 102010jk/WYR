@@ -1,5 +1,6 @@
 import { useCartStore } from '../../state/cartStore';
 import { WireframeEarth } from '../../scene/earth/WireframeEarth';
+import { sfx } from '../../audio/sfx';
 
 /**
  * Mounted inside the persistent Canvas. Renders the WireframeEarth only when
@@ -25,6 +26,7 @@ export function CartEarthScene() {
       radius={2.0}
       marker={existingTarget}
       onTargetSelect={(lat, lon) => {
+        sfx.play('lockOn');
         setTarget(targetPickingId, { lat, lon });
         // Give the user a moment to see the crosshair land, then return to cart.
         setTimeout(() => cancelTargetPick(), 900);

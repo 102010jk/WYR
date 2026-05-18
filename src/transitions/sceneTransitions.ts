@@ -12,9 +12,10 @@ export interface CameraWaypoint {
 }
 
 export const CAMERA_WAYPOINTS: Record<AppState, CameraWaypoint> = {
-  landing:          { pos: [0, 2.2, 7.5], lookAt: [0, 0, 0] },
-  'hud.arsenal':    { pos: [0, 1.2, 8.5], lookAt: [0, 0, 0] },
-  'hud.cart':       { pos: [0, 1.2, 8.5], lookAt: [0, 0, 0] },
-  'hud.simulator':  { pos: [0, 1.2, 8.5], lookAt: [0, 0, 0] },
-  'hud.information':{ pos: [0, 1.2, 8.5], lookAt: [0, 0, 0] },
+  landing:          { pos: [0, 2.4, 9.2], lookAt: [0, 0, 0] },
+  'hud.arsenal':    { pos: [0, 1.2, 9.5], lookAt: [0, 0, 0] },
+  'hud.cart':       { pos: [0, 1.0, 8.5], lookAt: [0, 0, 0] },
+  // Simulator = orbital command view, looking down on the planet from a ship.
+  'hud.simulator':  { pos: [0, 4.2, 6.8], lookAt: [0, 0, 0] },
+  'hud.information':{ pos: [0, 1.2, 9.5], lookAt: [0, 0, 0] },
 };
