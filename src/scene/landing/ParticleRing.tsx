@@ -41,9 +41,9 @@ const SLOT_HALF_ARC = 0.42;
 const BUTTON_W = 1.95;
 const BUTTON_H = 0.52;
 /** Radial spread — gives rings visible volume instead of a hairline. */
-const RING_THICKNESS = 0.13;
+const RING_THICKNESS = 0.42;
 /** Vertical scatter so the ring isn't perfectly flat. */
-const RING_Y_SPREAD = 0.055;
+const RING_Y_SPREAD = 0.18;
 
 // ─── Geometry builder ─────────────────────────────────────────────────────────
 
