@@ -1,0 +1,313 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-bbb-black: #000000;
+  --color-bbb-white: #ffffff;
+  --color-bbb-green: #39ff14;
+  --color-bbb-green-dim: #1a9c0a;
+  --color-bbb-crimson: #dc2626;
+  --color-bbb-crimson-bright: #ff2d2d;
+  --color-bbb-glass: rgba(255, 255, 255, 0.04);
+
+  --font-terminal: 'VT323', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-display: 'Orbitron', ui-sans-serif, system-ui, sans-serif;
+}
+
+/* ── Design tokens — single source of truth for glow/spacing/typography ──── */
+
+:root {
+  /* Glow hierarchy — three intensities for all text-shadow / box-shadow */
+  --bbb-glow-subtle:   0 0 6px rgba(255, 255, 255, 0.35);
+  --bbb-glow-default:  0 0 12px rgba(255, 255, 255, 0.65), 0 0 3px rgba(255, 255, 255, 0.35);
+  --bbb-glow-emphasis: 0 0 22px rgba(255, 255, 255, 0.85), 0 0 6px rgba(255, 255, 255, 0.55);
+
+  /* Green variants (terminal HUD) */
+  --bbb-glow-green-subtle:   0 0 8px rgba(57, 255, 20, 0.40);
+  --bbb-glow-green-default:  0 0 14px rgba(57, 255, 20, 0.70), 0 0 4px rgba(57, 255, 20, 0.40);
+  --bbb-glow-green-emphasis: 0 0 26px rgba(57, 255, 20, 0.95), 0 0 7px rgba(57, 255, 20, 0.55);
+
+  /* Crimson (danger) */
+  --bbb-glow-crimson-subtle:   0 0 8px rgba(220, 38, 38, 0.45);
+  --bbb-glow-crimson-default:  0 0 14px rgba(220, 38, 38, 0.75), 0 0 4px rgba(220, 38, 38, 0.45);
+  --bbb-glow-crimson-emphasis: 0 0 28px rgba(220, 38, 38, 0.95), 0 0 8px rgba(220, 38, 38, 0.60);
+
+  /* Surface shadows (panels) */
+  --bbb-shadow-panel: 0 0 60px rgba(0, 0, 0, 0.55), 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+
+  /* Type scale */
+  --bbb-text-xs:  12px;
+  --bbb-text-sm:  14px;
+  --bbb-text-md:  16px;
+  --bbb-text-lg:  20px;
+  --bbb-text-xl:  26px;
+  --bbb-text-2xl: 36px;
+
+  /* Spacing scale */
+  --bbb-space-1:  4px;
+  --bbb-space-2:  8px;
+  --bbb-space-3: 12px;
+  --bbb-space-4: 16px;
+  --bbb-space-5: 24px;
+  --bbb-space-6: 40px;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  background: #000;
+  color: #fff;
+  font-family: var(--font-terminal);
+}
+
+body {
+  overflow: hidden;
+  background: #000;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+
+#root {
+  position: fixed;
+  inset: 0;
+  isolation: isolate;
+}
+
+canvas {
+  display: block;
+  outline: none;
+}
+
+/* Scanline overlay utility — used by future GlassPanel */
+.bbb-scanlines {
+  background-image: repeating-linear-gradient(
+    0deg,
+    rgba(57, 255, 20, 0.04) 0px,
+    rgba(57, 255, 20, 0.04) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+}
+
+/* CRT flicker keyframe for HUD readouts */
+@keyframes bbb-flicker {
+  0%, 100% { opacity: 1; }
+  47% { opacity: 1; }
+  48% { opacity: 0.7; }
+  49% { opacity: 1; }
+  72% { opacity: 1; }
+  73% { opacity: 0.85; }
+  74% { opacity: 1; }
+}
+
+.bbb-flicker {
+  animation: bbb-flicker 4.2s infinite steps(1, end);
+}
+
+/* ── Glitch transition overlay ─────────────────────────────────────────────── */
+
+@keyframes bbb-glitch-overlay {
+  0%   { background: transparent; }
+  6%   { background: rgba(255,255,255,0.32); clip-path: inset(0 0 72% 0); }
+  10%  { background: rgba(220,38,38,0.18); clip-path: none; }
+  15%  { background: rgba(255,255,255,0.22); clip-path: inset(38% 0 42% 0); }
+  20%  { background: rgba(57,255,20,0.08); clip-path: none; }
+  28%  { background: rgba(255,255,255,0.14); clip-path: inset(70% 0 10% 0); }
+  35%  { background: rgba(0,0,0,0.55); clip-path: none; }
+  50%  { background: rgba(0,0,0,0.22); }
+  70%  { background: rgba(0,0,0,0.06); }
+  100% { background: transparent; }
+}
+
+/* ── Glitch effect applied to the canvas wrapper ───────────────────────────── */
+
+@keyframes bbb-canvas-glitch {
+  0%   { filter: none;                           transform: none; }
+  7%   { filter: brightness(1.7) saturate(0);    transform: translate(-5px, 0); }
+  11%  { filter: none;                           transform: translate(0, 0); }
+  17%  { filter: brightness(0.65) saturate(2.5); transform: translate(4px, -2px); }
+  21%  { filter: none;                           transform: translate(0, 0); }
+  29%  { filter: brightness(1.25);               transform: translate(-2px, 0); }
+  36%  { filter: none;                           transform: translate(0, 0); }
+  100% { filter: none;                           transform: none; }
+}
+
+.bbb-canvas-glitching {
+  animation: bbb-canvas-glitch 0.7s ease-out forwards;
+}
+
+/* ── Landing ring button — borderless, blends with particles ─────────────── */
+
+.bbb-ring-button {
+  position: relative;
+  font-family: 'Orbitron', ui-sans-serif, sans-serif;
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0.38em;
+  color: rgba(255, 255, 255, 0.88);
+  text-shadow:
+    0 0 10px rgba(255, 255, 255, 0.95),
+    0 0 28px rgba(255, 255, 255, 0.50),
+    0 0 60px rgba(255, 255, 255, 0.20);
+  background: none;
+  padding: 6px 16px;
+  white-space: nowrap;
+  cursor: crosshair;
+  pointer-events: auto;
+  user-select: none;
+  will-change: opacity, transform;
+  text-indent: 0.38em;
+}
+
+/* ── Holographic glass panel ────────────────────────────────────────────────── */
+
+.bbb-glass-panel {
+  position: relative;
+}
+
+/* Four corner brackets — classic hologram HUD indicator */
+.bbb-glass-corner {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-color: rgba(57, 255, 20, 0.60);
+  border-style: solid;
+  pointer-events: none;
+  z-index: 1;
+}
+.bbb-glass-corner--tl { top: -1px;    left: -1px;  border-width: 2px 0 0 2px; }
+.bbb-glass-corner--tr { top: -1px;    right: -1px; border-width: 2px 2px 0 0; }
+.bbb-glass-corner--bl { bottom: -1px; left: -1px;  border-width: 0 0 2px 2px; }
+.bbb-glass-corner--br { bottom: -1px; right: -1px; border-width: 0 2px 2px 0; }
+
+/* ── Insufficient-funds modal pulse ────────────────────────────────────────── */
+
+@keyframes bbb-fund-pulse {
+  from { box-shadow: 0 0 60px rgba(220,38,38,0.45), inset 0 0 20px rgba(220,38,38,0.12); }
+  to   { box-shadow: 0 0 100px rgba(220,38,38,0.85), inset 0 0 40px rgba(220,38,38,0.30); }
+}
+@keyframes bbb-fund-bg {
+  from { background: rgba(60,0,0,0.55); }
+  to   { background: rgba(120,0,0,0.35); }
+}
+
+/* ── CRT scanlines + corner vignette — global unifying layer ─────────────── */
+/* Lives between the 3D canvas (z:0) and the HUD overlays (z:10). Faint
+ * 2-px horizontal scanline gradient + radial corner darkening. */
+.bbb-crt {
+  position: fixed;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+  background-image:
+    radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.55) 100%),
+    repeating-linear-gradient(
+      to bottom,
+      rgba(255,255,255,0.020) 0px,
+      rgba(255,255,255,0.020) 1px,
+      transparent 1px,
+      transparent 3px
+    );
+  mix-blend-mode: normal;
+}
+
+/* Subtle screen flicker — multiplies onto the scanline layer. */
+.bbb-crt::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.012);
+  animation: bbb-crt-flicker 6s steps(2, end) infinite;
+}
+@keyframes bbb-crt-flicker {
+  0%, 95%, 100% { opacity: 1; }
+  96%           { opacity: 0.85; }
+  97%           { opacity: 1; }
+  98%           { opacity: 0.92; }
+}
+
+/* ── Boot sequence ───────────────────────────────────────────────────────── */
+
+.bbb-boot-root {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: #000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+  cursor: pointer;
+  user-select: none;
+  overflow: hidden;
+}
+
+.bbb-boot-scanlines {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background-image:
+    radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,0.85) 100%),
+    repeating-linear-gradient(
+      to bottom,
+      rgba(57, 255, 20, 0.06) 0px,
+      rgba(57, 255, 20, 0.06) 1px,
+      transparent 1px,
+      transparent 3px
+    );
+  pointer-events: none;
+}
+
+.bbb-boot-logo {
+  display: flex;
+  gap: 6px;
+  margin-bottom: var(--bbb-space-6);
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 92px;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.96);
+  text-shadow: var(--bbb-glow-emphasis);
+}
+
+.bbb-boot-logo span {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(18px);
+}
+
+.bbb-boot-terminal {
+  font-family: var(--font-terminal);
+  font-size: var(--bbb-text-lg);
+  letter-spacing: 0.12em;
+  color: var(--color-bbb-green);
+  text-shadow: var(--bbb-glow-green-default);
+  min-height: calc(var(--bbb-text-lg) * 4 * 1.4);
+  width: min(640px, 80vw);
+  text-align: left;
+}
+
+.bbb-boot-terminal .line {
+  display: block;
+  opacity: 0;
+  white-space: pre;
+}
+
+.bbb-boot-skip-hint {
+  position: absolute;
+  bottom: 28px;
+  font-family: var(--font-terminal);
+  font-size: var(--bbb-text-xs);
+  letter-spacing: 0.32em;
+  color: rgba(57, 255, 20, 0.45);
+  opacity: 0;
+}
