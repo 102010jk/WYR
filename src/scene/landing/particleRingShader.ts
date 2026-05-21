@@ -37,7 +37,7 @@ const vertexShader = /* glsl */ `
 
     vec3 pos = mix(aRingPos, aRectPos, m);
     gl_Position  = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
-    gl_PointSize = 2.2 + m * 2.8;
+    gl_PointSize = 2.2;
   }
 `;
 
@@ -49,7 +49,7 @@ const fragmentShader = /* glsl */ `
     float d  = length(uv);
     if (d > 0.5) discard;
 
-    float brightness = 0.55 + vMorph * 0.45;
+    float brightness = 0.60 + vMorph * 0.28;
     float alpha      = (1.0 - d * 1.85) * brightness;
     gl_FragColor = vec4(1.0, 1.0, 1.0, alpha);
   }

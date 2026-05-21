@@ -118,13 +118,13 @@ interface SlotElementProps {
 }
 
 function SlotElement({ slot, radius, morphRef, onEnter, onLeave, onClick }: SlotElementProps) {
-  const svgRef = useRef<SVGSVGElement>(null);
+  const divRef = useRef<HTMLDivElement>(null);
 
   useFrame(() => {
     const v = morphRef.current;
-    if (!svgRef.current) return;
-    svgRef.current.style.opacity = String(v);
-    svgRef.current.style.transform = `scale(${0.88 + v * 0.12})`;
+    if (!divRef.current) return;
+    divRef.current.style.opacity = String(v);
+    divRef.current.style.transform = `scale(${0.88 + v * 0.12})`;
   });
 
   const pos: [number, number, number] = [
@@ -132,11 +132,6 @@ function SlotElement({ slot, radius, morphRef, onEnter, onLeave, onClick }: Slot
     0,
     radius * Math.sin(slot.theta),
   ];
-
-  const arcId = `s${slot.slotIndex}`;
-  const label = slot.label.toUpperCase();
-  // ~8 px per char (Orbitron 12 px + 3 px letter-spacing) plus side padding
-  const hw = label.length * 8 + 16;
 
   return (
     <group position={pos}>
@@ -152,37 +147,35 @@ function SlotElement({ slot, radius, morphRef, onEnter, onLeave, onClick }: Slot
         </mesh>
       </Billboard>
 
-      {/* SVG curved label — text follows a circular arc matching the ring curvature.
-          Dark ellipse behind the text masks background stars for readability. */}
+      {/* Label — radial dark-cloud background masks stars without creating a hard box. */}
       <Html center zIndexRange={[5, 6]}>
-        <svg
-          ref={svgRef}
-          width="0"
-          height="0"
-          style={{ overflow: 'visible', opacity: 0, pointerEvents: 'none' }}
+        <div
+          ref={divRef}
+          onClick={onClick}
+          style={{
+            opacity: 0,
+            fontFamily: "'Orbitron', sans-serif",
+            fontSize: '15px',
+            fontWeight: 600,
+            letterSpacing: '0.30em',
+            textIndent: '0.30em',
+            color: 'rgba(255,255,255,0.97)',
+            textShadow:
+              '0 0 6px rgba(255,255,255,1),' +
+              '0 0 18px rgba(255,255,255,0.85),' +
+              '0 0 45px rgba(255,255,255,0.40)',
+            background:
+              'radial-gradient(ellipse 140% 260% at 50% 50%, rgba(0,0,0,0.72) 25%, rgba(0,0,0,0) 100%)',
+            padding: '14px 36px',
+            whiteSpace: 'nowrap',
+            cursor: 'crosshair',
+            pointerEvents: 'auto',
+            userSelect: 'none',
+            willChange: 'opacity, transform',
+          }}
         >
-          <defs>
-            {/* Upward-arching path so characters curve like text on the near face of the ring */}
-            <path id={arcId} d={`M ${-hw},12 A 110,110 0 0,0 ${hw},12`} />
-          </defs>
-          {/* Soft dark haze — occludes background stars, keeps text readable */}
-          <ellipse cx="0" cy="-6" rx={hw + 14} ry="32" fill="rgba(0,0,0,0.70)" />
-          <text
-            fill="rgba(255,255,255,0.94)"
-            style={{
-              fontFamily: "'Orbitron', sans-serif",
-              fontSize: '12px',
-              letterSpacing: '3px',
-              filter:
-                'drop-shadow(0 0 7px rgba(255,255,255,0.9)) ' +
-                'drop-shadow(0 0 18px rgba(255,255,255,0.38))',
-            }}
-          >
-            <textPath href={`#${arcId}`} textAnchor="middle" startOffset="50%">
-              {label}
-            </textPath>
-          </text>
-        </svg>
+          {slot.label.toUpperCase()}
+        </div>
       </Html>
     </group>
   );
