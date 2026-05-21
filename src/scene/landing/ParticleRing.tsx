@@ -118,14 +118,13 @@ interface SlotElementProps {
 }
 
 function SlotElement({ slot, radius, morphRef, onEnter, onLeave, onClick }: SlotElementProps) {
-  const divRef = useRef<HTMLDivElement>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
 
-  // Drive HTML opacity + scale directly from morphRef — no React state, no re-renders.
   useFrame(() => {
     const v = morphRef.current;
-    if (!divRef.current) return;
-    divRef.current.style.opacity = String(v);
-    divRef.current.style.transform = `scale(${0.88 + v * 0.12})`;
+    if (!svgRef.current) return;
+    svgRef.current.style.opacity = String(v);
+    svgRef.current.style.transform = `scale(${0.88 + v * 0.12})`;
   });
 
   const pos: [number, number, number] = [
@@ -134,10 +133,14 @@ function SlotElement({ slot, radius, morphRef, onEnter, onLeave, onClick }: Slot
     radius * Math.sin(slot.theta),
   ];
 
+  const arcId = `s${slot.slotIndex}`;
+  const label = slot.label.toUpperCase();
+  // ~8 px per char (Orbitron 12 px + 3 px letter-spacing) plus side padding
+  const hw = label.length * 8 + 16;
+
   return (
     <group position={pos}>
-      {/* Invisible plane that always faces the camera — used for hover detection.
-          Substantially larger than the visible button so the moving target is easy to hit. */}
+      {/* Invisible plane facing camera — hover / click detection. */}
       <Billboard>
         <mesh
           onPointerEnter={onEnter}
@@ -149,16 +152,37 @@ function SlotElement({ slot, radius, morphRef, onEnter, onLeave, onClick }: Slot
         </mesh>
       </Billboard>
 
-      {/* HTML label — rendered as a DOM element at the projected 3D position. */}
+      {/* SVG curved label — text follows a circular arc matching the ring curvature.
+          Dark ellipse behind the text masks background stars for readability. */}
       <Html center zIndexRange={[5, 6]}>
-        <div
-          ref={divRef}
-          onClick={onClick}
-          className="bbb-ring-button"
-          style={{ opacity: 0 }}
+        <svg
+          ref={svgRef}
+          width="0"
+          height="0"
+          style={{ overflow: 'visible', opacity: 0, pointerEvents: 'none' }}
         >
-          {slot.label.toUpperCase()}
-        </div>
+          <defs>
+            {/* Upward-arching path so characters curve like text on the near face of the ring */}
+            <path id={arcId} d={`M ${-hw},12 A 110,110 0 0,0 ${hw},12`} />
+          </defs>
+          {/* Soft dark haze — occludes background stars, keeps text readable */}
+          <ellipse cx="0" cy="-6" rx={hw + 14} ry="32" fill="rgba(0,0,0,0.70)" />
+          <text
+            fill="rgba(255,255,255,0.94)"
+            style={{
+              fontFamily: "'Orbitron', sans-serif",
+              fontSize: '12px',
+              letterSpacing: '3px',
+              filter:
+                'drop-shadow(0 0 7px rgba(255,255,255,0.9)) ' +
+                'drop-shadow(0 0 18px rgba(255,255,255,0.38))',
+            }}
+          >
+            <textPath href={`#${arcId}`} textAnchor="middle" startOffset="50%">
+              {label}
+            </textPath>
+          </text>
+        </svg>
       </Html>
     </group>
   );
