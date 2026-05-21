@@ -6,7 +6,7 @@ import {
   type MutableRefObject,
 } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Billboard, Text } from '@react-three/drei';
+import { Billboard, Html } from '@react-three/drei';
 import * as THREE from 'three';
 import gsap from 'gsap';
 import { createRingMaterial, type RingUniforms } from './particleRingShader';
@@ -117,20 +117,14 @@ interface SlotElementProps {
   onClick: () => void;
 }
 
-/** Radians between adjacent character centres along the ring arc. */
-const CHAR_ARC_STEP = 0.052;
-
 function SlotElement({ slot, radius, morphRef, onEnter, onLeave, onClick }: SlotElementProps) {
-  const chars = slot.label.toUpperCase().split('');
-  // Pre-allocate stable ref array — one entry per character.
-  const charRefs = useRef<(any | null)[]>(chars.map(() => null));
+  const divRef = useRef<HTMLDivElement>(null);
 
-  // Drive per-character fillOpacity from morphRef each frame — no React state, no re-renders.
   useFrame(() => {
     const v = morphRef.current;
-    for (const mesh of charRefs.current) {
-      if (mesh != null) mesh.fillOpacity = v;
-    }
+    if (!divRef.current) return;
+    divRef.current.style.opacity = String(v);
+    divRef.current.style.transform = `scale(${0.88 + v * 0.12})`;
   });
 
   const pos: [number, number, number] = [
@@ -139,43 +133,62 @@ function SlotElement({ slot, radius, morphRef, onEnter, onLeave, onClick }: Slot
     radius * Math.sin(slot.theta),
   ];
 
-  return (
-    <group>
-      {/* Hover / click hit plane — Billboard so it always faces the camera. */}
-      <group position={pos}>
-        <Billboard>
-          <mesh onPointerEnter={onEnter} onPointerLeave={onLeave} onClick={onClick}>
-            <planeGeometry args={[BUTTON_W + 2.6, BUTTON_H + 2.2]} />
-            <meshBasicMaterial transparent opacity={0} depthWrite={false} />
-          </mesh>
-        </Billboard>
-      </group>
+  const chars = slot.label.toUpperCase().split('');
 
-      {/* One <Text> per character, each Billboarded at its own arc position.
-          The spread of 3D positions along the ring arc makes the label appear
-          to curve with the ring when projected to screen — no background needed. */}
-      {chars.map((char, i) => {
-        const t = slot.theta + (i - (chars.length - 1) / 2) * CHAR_ARC_STEP;
-        return (
-          <Billboard key={i} position={[radius * Math.cos(t), 0, radius * Math.sin(t)]}>
-            <Text
-              ref={(el: any) => { charRefs.current[i] = el; }}
-              font="/fonts/Orbitron.woff2"
-              fontSize={0.30}
-              color="white"
-              fillOpacity={0}
-              anchorX="center"
-              anchorY="middle"
-              letterSpacing={0.05}
-              depthTest={false}
-              depthWrite={false}
-              renderOrder={10}
-            >
-              {char}
-            </Text>
-          </Billboard>
-        );
-      })}
+  return (
+    <group position={pos}>
+      {/* Invisible plane facing camera — hover / click detection. */}
+      <Billboard>
+        <mesh onPointerEnter={onEnter} onPointerLeave={onLeave} onClick={onClick}>
+          <planeGeometry args={[BUTTON_W + 2.6, BUTTON_H + 2.2]} />
+          <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+        </mesh>
+      </Billboard>
+
+      {/* Per-character spans with rotateY give a CSS perspective curve that
+          matches the ring's visible curvature. No background — text floats
+          in the particle stream. */}
+      <Html center zIndexRange={[5, 6]}>
+        <div
+          ref={divRef}
+          onClick={onClick}
+          style={{
+            opacity: 0,
+            display: 'flex',
+            alignItems: 'center',
+            perspective: '180px',
+            cursor: 'crosshair',
+            pointerEvents: 'auto',
+            userSelect: 'none',
+            willChange: 'opacity, transform',
+          }}
+        >
+          {chars.map((char, i) => {
+            const angle = (i - (chars.length - 1) / 2) * 5;
+            return (
+              <span
+                key={i}
+                style={{
+                  display: 'inline-block',
+                  fontFamily: "'Orbitron', sans-serif",
+                  fontSize: '15px',
+                  fontWeight: 600,
+                  color: 'rgba(255,255,255,0.97)',
+                  letterSpacing: '2px',
+                  textShadow:
+                    '0 0 6px rgba(255,255,255,1),' +
+                    '0 0 18px rgba(255,255,255,0.85),' +
+                    '0 0 50px rgba(255,255,255,0.35)',
+                  transform: `rotateY(${angle}deg)`,
+                  transformOrigin: 'center center',
+                }}
+              >
+                {char}
+              </span>
+            );
+          })}
+        </div>
+      </Html>
     </group>
   );
 }
