@@ -6,7 +6,7 @@ import {
   type MutableRefObject,
 } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Billboard, Html } from '@react-three/drei';
+import { Billboard, Text } from '@react-three/drei';
 import * as THREE from 'three';
 import gsap from 'gsap';
 import { createRingMaterial, type RingUniforms } from './particleRingShader';
@@ -117,14 +117,20 @@ interface SlotElementProps {
   onClick: () => void;
 }
 
-function SlotElement({ slot, radius, morphRef, onEnter, onLeave, onClick }: SlotElementProps) {
-  const divRef = useRef<HTMLDivElement>(null);
+/** Radians between adjacent character centres along the ring arc. */
+const CHAR_ARC_STEP = 0.052;
 
+function SlotElement({ slot, radius, morphRef, onEnter, onLeave, onClick }: SlotElementProps) {
+  const chars = slot.label.toUpperCase().split('');
+  // Pre-allocate stable ref array — one entry per character.
+  const charRefs = useRef<(any | null)[]>(chars.map(() => null));
+
+  // Drive per-character fillOpacity from morphRef each frame — no React state, no re-renders.
   useFrame(() => {
     const v = morphRef.current;
-    if (!divRef.current) return;
-    divRef.current.style.opacity = String(v);
-    divRef.current.style.transform = `scale(${0.88 + v * 0.12})`;
+    for (const mesh of charRefs.current) {
+      if (mesh != null) mesh.fillOpacity = v;
+    }
   });
 
   const pos: [number, number, number] = [
@@ -134,49 +140,42 @@ function SlotElement({ slot, radius, morphRef, onEnter, onLeave, onClick }: Slot
   ];
 
   return (
-    <group position={pos}>
-      {/* Invisible plane facing camera — hover / click detection. */}
-      <Billboard>
-        <mesh
-          onPointerEnter={onEnter}
-          onPointerLeave={onLeave}
-          onClick={onClick}
-        >
-          <planeGeometry args={[BUTTON_W + 2.6, BUTTON_H + 2.2]} />
-          <meshBasicMaterial transparent opacity={0} depthWrite={false} />
-        </mesh>
-      </Billboard>
+    <group>
+      {/* Hover / click hit plane — Billboard so it always faces the camera. */}
+      <group position={pos}>
+        <Billboard>
+          <mesh onPointerEnter={onEnter} onPointerLeave={onLeave} onClick={onClick}>
+            <planeGeometry args={[BUTTON_W + 2.6, BUTTON_H + 2.2]} />
+            <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+          </mesh>
+        </Billboard>
+      </group>
 
-      {/* Label — radial dark-cloud background masks stars without creating a hard box. */}
-      <Html center zIndexRange={[5, 6]}>
-        <div
-          ref={divRef}
-          onClick={onClick}
-          style={{
-            opacity: 0,
-            fontFamily: "'Orbitron', sans-serif",
-            fontSize: '15px',
-            fontWeight: 600,
-            letterSpacing: '0.30em',
-            textIndent: '0.30em',
-            color: 'rgba(255,255,255,0.97)',
-            textShadow:
-              '0 0 6px rgba(255,255,255,1),' +
-              '0 0 18px rgba(255,255,255,0.85),' +
-              '0 0 45px rgba(255,255,255,0.40)',
-            background:
-              'radial-gradient(ellipse 140% 260% at 50% 50%, rgba(0,0,0,0.72) 25%, rgba(0,0,0,0) 100%)',
-            padding: '14px 36px',
-            whiteSpace: 'nowrap',
-            cursor: 'crosshair',
-            pointerEvents: 'auto',
-            userSelect: 'none',
-            willChange: 'opacity, transform',
-          }}
-        >
-          {slot.label.toUpperCase()}
-        </div>
-      </Html>
+      {/* One <Text> per character, each Billboarded at its own arc position.
+          The spread of 3D positions along the ring arc makes the label appear
+          to curve with the ring when projected to screen — no background needed. */}
+      {chars.map((char, i) => {
+        const t = slot.theta + (i - (chars.length - 1) / 2) * CHAR_ARC_STEP;
+        return (
+          <Billboard key={i} position={[radius * Math.cos(t), 0, radius * Math.sin(t)]}>
+            <Text
+              ref={(el: any) => { charRefs.current[i] = el; }}
+              font="/fonts/Orbitron.woff2"
+              fontSize={0.30}
+              color="white"
+              fillOpacity={0}
+              anchorX="center"
+              anchorY="middle"
+              letterSpacing={0.05}
+              depthTest={false}
+              depthWrite={false}
+              renderOrder={10}
+            >
+              {char}
+            </Text>
+          </Billboard>
+        );
+      })}
     </group>
   );
 }
