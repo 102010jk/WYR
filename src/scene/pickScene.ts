@@ -6,6 +6,7 @@ import { Target } from '../types';
 export interface PickController {
   resizeCanvas: () => void;
   dispose: () => void;
+  setVisible: (v: boolean) => void;
 }
 
 export function initPickScene(
@@ -62,6 +63,7 @@ export function initPickScene(
     ray.setFromCamera(ndc, pickCamera);
     const hits = ray.intersectObject(earth.sphere, false);
     if (!hits.length) return;
+    earth.updateWorldMatrix(true, false);
     const localP = earth.worldToLocal(hits[0].point.clone());
     const v = localP.clone().normalize();
     const lat =  Math.asin(v.y) * 180 / Math.PI;
@@ -131,20 +133,31 @@ export function initPickScene(
   });
   canvas.addEventListener('pointerleave', () => { lastMouse = null; canvas.classList.remove('dragging'); });
 
+  let running = false;
+
   function animatePick() {
+    if (!running) return;
     animId = requestAnimationFrame(animatePick);
     earth.rotation.x += (rotation.x - earth.rotation.x) * 0.15;
     earth.rotation.y += (rotation.y - earth.rotation.y) * 0.15;
     rotation.y += 0.0015;
     renderer.render(pickScene, pickCamera);
   }
-  animatePick();
+
+  function setVisible(v: boolean) {
+    if (v === running) return;
+    running = v;
+    if (v) animatePick();
+    else cancelAnimationFrame(animId);
+  }
+
   resizeCanvas();
 
   function dispose() {
+    running = false;
     cancelAnimationFrame(animId);
     renderer.dispose();
   }
 
-  return { resizeCanvas, dispose };
+  return { resizeCanvas, dispose, setVisible };
 }

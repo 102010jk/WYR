@@ -77,6 +77,7 @@ export function initSimScene(config: SimConfig): SimController {
     const hits = ray.intersectObject(earth.sphere, false);
     if (!hits.length) { onLog('▸ MISS · vacuum impact', 'warn'); return; }
 
+    earth.updateWorldMatrix(true, false);
     const localP = earth.worldToLocal(hits[0].point.clone());
     const v = localP.clone().normalize();
     const lat = Math.asin(v.y) * 180 / Math.PI;

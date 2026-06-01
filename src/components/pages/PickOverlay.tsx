@@ -33,8 +33,9 @@ export default function PickOverlay({ open, weaponId, cart, onConfirm, onCancel,
     return () => { ctrl.dispose(); ctrlRef.current = null; };
   }, []);
 
-  // Resize when overlay opens
+  // Pause/resume render loop and resize when overlay opens/closes
   useEffect(() => {
+    ctrlRef.current?.setVisible(open);
     if (open) {
       setPicked(existingTarget ?? null);
       setTimeout(() => ctrlRef.current?.resizeCanvas(), 50);

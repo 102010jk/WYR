@@ -22,6 +22,7 @@ export default function Compass({ route, onNavigate }: Props) {
   const accumRef = useRef(0);
   const dwellRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const trackRef = useRef<HTMLDivElement>(null);
+  const isHoveringRef = useRef(false);
 
   // Sync active index when route changes externally
   useEffect(() => {
@@ -42,6 +43,7 @@ export default function Compass({ route, onNavigate }: Props) {
   useEffect(() => {
     if (!visible) return;
     function onWheel(e: WheelEvent) {
+      if (!isHoveringRef.current) return;
       if ((e.target as HTMLElement)?.closest?.('.tweaks, .accordion, .items, .summary, .picker, .analytics, .detail, .pick-overlay')) return;
       e.preventDefault();
       accumRef.current += e.deltaY || e.deltaX;
@@ -67,7 +69,11 @@ export default function Compass({ route, onNavigate }: Props) {
   const transform = `translate(${-(activeIdx * COMPASS_GAP + 100)}px, -50%)`;
 
   return (
-    <div className={`compass${visible ? ' on' : ''}`}>
+    <div
+      className={`compass${visible ? ' on' : ''}`}
+      onMouseEnter={() => { isHoveringRef.current = true; }}
+      onMouseLeave={() => { isHoveringRef.current = false; }}
+    >
       <div className="frame">
         <div className="ticks" />
         <div className="ticks bot" />
