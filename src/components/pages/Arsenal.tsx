@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import gsap from 'gsap';
 import { CATEGORIES, WEAPONS, weaponById, weaponsInCategory, categoryById } from '../../data';
 import { CartItem, Weapon } from '../../types';
 
@@ -6,6 +7,7 @@ interface Props {
   cart: CartItem[];
   onAddToCart: (weaponId: string) => void;
   onNavigateToSim: (weaponId: string) => void;
+  isActive: boolean;
 }
 
 function yieldDisplay(w: Weapon): string {
@@ -69,9 +71,35 @@ function YieldGraph({ w }: { w: Weapon }) {
 
 function WeaponDetail({ weapon, inCart, onAddToCart, onTest }: { weapon: Weapon; inCart: boolean; onAddToCart: () => void; onTest: () => void }) {
   const cat = categoryById(weapon.cat)!;
-  const deployText = cat.deploy.join('  ·  ');
+  const deployText = cat.deploy.join('  ·  ');
+  const detRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = detRef.current;
+    if (!el) return;
+
+    // Stagger sections in
+    const targets = [
+      el.querySelector('.det-head'),
+      ...Array.from(el.querySelectorAll('.stat-row')),
+      el.querySelector('.det-desc'),
+      el.querySelector('.det-graph'),
+      el.querySelector('.det-actions'),
+    ].filter(Boolean);
+    gsap.fromTo(targets,
+      { opacity: 0, y: 14 },
+      { opacity: 1, y: 0, stagger: 0.045, duration: 0.42, ease: 'power2.out', clearProps: 'transform,opacity' }
+    );
+
+    // Animate stat bars from 0
+    el.querySelectorAll<HTMLElement>('.bar .fill').forEach(fill => {
+      const targetW = fill.style.width;
+      gsap.fromTo(fill, { width: '0%' }, { width: targetW, duration: 0.9, ease: 'power3.out', delay: 0.18 });
+    });
+  }, [weapon.id]);
+
   return (
-    <div className="det on">
+    <div className="det on" ref={detRef}>
       <div className="det-head">
         <div>
           <div className="code">{weapon.code} · {cat.name}</div>
@@ -113,15 +141,35 @@ function WeaponDetail({ weapon, inCart, onAddToCart, onTest }: { weapon: Weapon;
   );
 }
 
-export default function Arsenal({ cart, onAddToCart, onNavigateToSim }: Props) {
+export default function Arsenal({ cart, onAddToCart, onNavigateToSim, isActive }: Props) {
   const [openCat, setOpenCat] = useState<string | null>('nukes');
   const [selected, setSelected] = useState<string | null>(null);
+  const pageRef    = useRef<HTMLDivElement>(null);
+  const prevActive = useRef(false);
 
   const selectedWeapon = selected ? weaponById(selected) : null;
   const inCart = (id: string) => cart.some(it => it.weaponId === id);
 
+  // Page entrance animation
+  useEffect(() => {
+    if (isActive && !prevActive.current && pageRef.current) {
+      const el = pageRef.current;
+      gsap.fromTo(
+        el.querySelectorAll('.crumb, .page-head h1, .page-head .meta > *'),
+        { opacity: 0, y: -12 },
+        { opacity: 1, y: 0, stagger: 0.06, duration: 0.4, ease: 'power2.out', delay: 0.05, clearProps: 'transform,opacity' }
+      );
+      gsap.fromTo(
+        el.querySelectorAll('.arsenal .col'),
+        { opacity: 0, y: 22 },
+        { opacity: 1, y: 0, stagger: 0.1, duration: 0.5, ease: 'power2.out', delay: 0.12, clearProps: 'transform,opacity' }
+      );
+    }
+    prevActive.current = isActive;
+  }, [isActive]);
+
   return (
-    <>
+    <div ref={pageRef}>
       <div className="page-head">
         <div className="left">
           <span className="crumb">// ARSENAL.001</span>
@@ -181,6 +229,6 @@ export default function Arsenal({ cart, onAddToCart, onNavigateToSim }: Props) {
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 }

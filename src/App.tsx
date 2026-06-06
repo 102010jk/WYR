@@ -148,6 +148,7 @@ export default function App() {
           cart={cart}
           onAddToCart={addToCart}
           onNavigateToSim={handleTestInSim}
+          isActive={route === 'arsenal'}
         />
       </div>
 
@@ -160,6 +161,7 @@ export default function App() {
           onRemove={removeFromCart}
           onOpenPicker={(id) => { setPickWeaponId(id); setPickOpen(true); }}
           onShowToast={showToast}
+          isActive={route === 'cart'}
         />
       </div>
 

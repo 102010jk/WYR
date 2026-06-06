@@ -1,4 +1,5 @@
-import { forwardRef, useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import gsap from 'gsap';
 import { Route, ToastState } from '../types';
 
 interface HUDProps {
@@ -11,6 +12,8 @@ interface HUDProps {
 
 export default function HUD({ route, flashRef, domMenuRef, fpsRef, toast }: HUDProps) {
   const [cfTime, setCfTime] = useState('--:--:--');
+  const toastRef    = useRef<HTMLDivElement>(null);
+  const bracketsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -24,6 +27,31 @@ export default function HUD({ route, flashRef, domMenuRef, fpsRef, toast }: HUDP
     return () => clearInterval(id);
   }, []);
 
+  // Brackets entrance on mount
+  useEffect(() => {
+    if (!bracketsRef.current) return;
+    const spans = bracketsRef.current.querySelectorAll('span');
+    gsap.fromTo(spans,
+      { opacity: 0, scale: 1.4 },
+      { opacity: 0.45, scale: 1, stagger: 0.08, duration: 0.5, ease: 'power2.out', delay: 0.8 }
+    );
+  }, []);
+
+  // Toast GSAP animation
+  useEffect(() => {
+    const el = toastRef.current;
+    if (!el) return;
+    gsap.killTweensOf(el);
+    if (toast) {
+      gsap.fromTo(el,
+        { opacity: 0, scale: 0.86, y: 14 },
+        { opacity: 1, scale: 1,    y: 0,  duration: 0.38, ease: 'back.out(2)' }
+      );
+    } else {
+      gsap.to(el, { opacity: 0, scale: 0.9, y: -10, duration: 0.25, ease: 'power2.in' });
+    }
+  }, [toast]);
+
   const topState = { landing:'LANDING', arsenal:'ARSENAL', information:'INFORMATION', cart:'CART', simulator:'SIMULATOR' }[route] ?? route.toUpperCase();
   const topRoute = route === 'landing' ? 'CHANNEL OPEN' : 'CHANNEL: ' + route.toUpperCase();
 
@@ -32,7 +60,7 @@ export default function HUD({ route, flashRef, domMenuRef, fpsRef, toast }: HUDP
       <div className="scan" />
       <div className="vignette" />
       <div className="flash" ref={flashRef} />
-      <div className="brackets">
+      <div className="brackets" ref={bracketsRef}>
         <span className="tl" /><span className="tr" /><span className="bl" /><span className="br" />
       </div>
 
@@ -71,10 +99,12 @@ export default function HUD({ route, flashRef, domMenuRef, fpsRef, toast }: HUDP
         </div>
       )}
 
-      {/* Toast */}
-      <div className={`toast${toast ? ' on' : ''}${toast?.red ? ' red' : ''}`}>
-        {toast?.line}
-        {toast?.sub && <span className="small">{toast.sub}</span>}
+      {/* Toast — GSAP-animated wrapper */}
+      <div className="toast-positioner" ref={toastRef} style={{ opacity: 0 }}>
+        <div className={`toast${toast?.red ? ' red' : ''}`}>
+          {toast?.line}
+          {toast?.sub && <span className="small">{toast.sub}</span>}
+        </div>
       </div>
     </div>
   );

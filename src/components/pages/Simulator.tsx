@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import gsap from 'gsap';
 import { initSimScene, SimController } from '../../scene/simScene';
 import { SimAnalytics, SceneController } from '../../types';
 import { CATEGORIES, weaponsInCategory, weaponById } from '../../data';
@@ -18,6 +19,13 @@ export default function Simulator({ isActive, simWeapon, onSimWeaponChange, main
   const [analytics, setAnalytics] = useState<SimAnalytics>({ casualties: 0, radius: 0, cost: 0, halflife: 0, sparkHistory: [] });
   const [targetCoords, setTargetCoords] = useState('—');
   const [log, setLog] = useState<LogEntry[]>([]);
+
+  // Direct DOM refs for count-up (avoids React re-render during tween)
+  const casRef  = useRef<HTMLDivElement>(null);
+  const radRef  = useRef<HTMLSpanElement>(null);
+  const costRef = useRef<HTMLDivElement>(null);
+  const hlRef   = useRef<HTMLDivElement>(null);
+  const displayCounters = useRef({ cas: 0, rad: 0, cost: 0, hl: 0 });
 
   const simWeaponRef = useRef(simWeapon);
   simWeaponRef.current = simWeapon;
@@ -46,6 +54,50 @@ export default function Simulator({ isActive, simWeapon, onSimWeaponChange, main
       ctrlRef.current = null;
     };
   }, [isActive]);
+
+  // Page entrance animation
+  useEffect(() => {
+    if (!isActive || !stageRef.current) return;
+    const parent = stageRef.current.closest('#page-sim');
+    if (!parent) return;
+    gsap.fromTo(
+      parent.querySelectorAll('.crumb, .page-head h1, .page-head .meta > *'),
+      { opacity: 0, y: -12 },
+      { opacity: 1, y: 0, stagger: 0.06, duration: 0.4, ease: 'power2.out', delay: 0.05, clearProps: 'transform,opacity' }
+    );
+    gsap.fromTo(
+      parent.querySelectorAll('.sim .picker, .sim .analytics'),
+      { opacity: 0, x: (_i: number, el: Element) => el.classList.contains('picker') ? -20 : 20 },
+      { opacity: 1, x: 0, duration: 0.45, ease: 'power2.out', delay: 0.15, clearProps: 'transform,opacity' }
+    );
+  }, [isActive]);
+
+  // GSAP count-up when analytics change
+  useEffect(() => {
+    const from = { ...displayCounters.current };
+    const proxy = { cas: from.cas, rad: from.rad, cost: from.cost, hl: from.hl };
+
+    gsap.to(proxy, {
+      cas: analytics.casualties, rad: analytics.radius, cost: analytics.cost, hl: analytics.halflife,
+      duration: 0.85,
+      ease: 'power2.out',
+      onUpdate() {
+        if (casRef.current)  casRef.current.textContent  = Math.round(proxy.cas).toLocaleString();
+        if (radRef.current)  radRef.current.textContent  = proxy.rad.toFixed(1);
+        if (costRef.current) costRef.current.textContent = formatCost(proxy.cost);
+        if (hlRef.current)   hlRef.current.textContent   = proxy.hl > 0 ? formatHalflife(Math.round(proxy.hl)) : '0 d';
+        displayCounters.current = { cas: proxy.cas, rad: proxy.rad, cost: proxy.cost, hl: proxy.hl };
+      },
+    });
+
+    // Flash glow on casualty number on new impact
+    if (analytics.casualties > from.cas && casRef.current) {
+      gsap.fromTo(casRef.current,
+        { textShadow: '0 0 28px #dc2626, 0 0 10px #dc2626' },
+        { textShadow: '0 0 0px transparent', duration: 0.9, ease: 'power2.out' }
+      );
+    }
+  }, [analytics]);
 
   function formatCost(v: number): string {
     if (v >= 1e9) return '$ ' + (v/1e9).toFixed(2) + 'B';
@@ -111,7 +163,7 @@ export default function Simulator({ isActive, simWeapon, onSimWeaponChange, main
           <h3>// LIVE ANALYTICS</h3>
           <div className="stat-big">
             <div className="k">EST. CASUALTIES</div>
-            <div className="v red">{analytics.casualties.toLocaleString()}</div>
+            <div className="v red" ref={casRef}>0</div>
             <div className="u">SOULS, MEDIAN ESTIMATE</div>
             <div className="spark">
               <svg viewBox="0 0 200 36" preserveAspectRatio="none">
@@ -121,22 +173,22 @@ export default function Simulator({ isActive, simWeapon, onSimWeaponChange, main
           </div>
           <div className="stat-big">
             <div className="k">DESTRUCTION RADIUS</div>
-            <div className="v">{analytics.radius.toFixed(1)} <span className="u" style={{ fontSize:14, color:'var(--dim)' }}>KM</span></div>
+            <div className="v"><span ref={radRef}>0.0</span> <span className="u" style={{ fontSize:14, color:'var(--dim)' }}>KM</span></div>
             <div className="u">KILOMETERS, FROM EPICENTER</div>
           </div>
           <div className="stat-big">
             <div className="k">FINANCIAL DAMAGE</div>
-            <div className="v green">{formatCost(analytics.cost)}</div>
+            <div className="v green" ref={costRef}>$ 0</div>
             <div className="u">USD, GLOBAL MARKETS</div>
           </div>
           <div className="stat-big">
             <div className="k">RESIDUAL HALF-LIFE</div>
-            <div className="v">{analytics.halflife > 0 ? formatHalflife(analytics.halflife) : '0 d'}</div>
+            <div className="v" ref={hlRef}>0 d</div>
             <div className="u">UNTIL HABITABLE</div>
           </div>
           <div className="sim-log">
-            {log.map((entry, i) => (
-              <div key={i} className={`row${entry.kind?' '+entry.kind:''}`}>
+            {log.map((entry) => (
+              <div key={entry.t + entry.msg} className={`row${entry.kind?' '+entry.kind:''}`}>
                 <span className="t">{entry.t}</span>
                 <span>{entry.msg}</span>
               </div>

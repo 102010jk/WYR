@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import gsap from 'gsap';
 import { initPickScene, PickController } from '../../scene/pickScene';
 import { CartItem, Target } from '../../types';
 import { weaponById } from '../../data';
@@ -15,6 +16,7 @@ interface Props {
 export default function PickOverlay({ open, weaponId, cart, onConfirm, onCancel, onShowToast }: Props) {
   const canvasRef  = useRef<HTMLCanvasElement>(null);
   const stageRef   = useRef<HTMLDivElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
   const ctrlRef    = useRef<PickController | null>(null);
   const [picked, setPicked] = useState<(Target & { localP?: any }) | null>(null);
 
@@ -30,22 +32,43 @@ export default function PickOverlay({ open, weaponId, cart, onConfirm, onCancel,
       (t) => setPicked(t),
     );
     ctrlRef.current = ctrl;
+    // Start hidden
+    if (overlayRef.current) gsap.set(overlayRef.current, { visibility: 'hidden', opacity: 0 });
     return () => { ctrl.dispose(); ctrlRef.current = null; };
   }, []);
 
-  // Pause/resume render loop and resize when overlay opens/closes
+  // GSAP open/close + pause/resume render loop
   useEffect(() => {
+    const el = overlayRef.current;
+    if (!el) return;
     ctrlRef.current?.setVisible(open);
     if (open) {
       setPicked(existingTarget ?? null);
+      gsap.set(el, { visibility: 'visible', pointerEvents: 'auto' });
+      gsap.fromTo(el,
+        { opacity: 0 },
+        { opacity: 1, duration: 0.35, ease: 'power3.out' }
+      );
+      gsap.fromTo(
+        el.querySelectorAll('.pick-head, .pick-foot'),
+        { opacity: 0, y: 22 },
+        { opacity: 1, y: 0, stagger: 0.1, duration: 0.45, ease: 'power3.out', delay: 0.1, clearProps: 'transform' }
+      );
       setTimeout(() => ctrlRef.current?.resizeCanvas(), 50);
+    } else {
+      gsap.to(el, {
+        opacity: 0,
+        duration: 0.28,
+        ease: 'power2.in',
+        onComplete: () => gsap.set(el, { visibility: 'hidden', pointerEvents: 'none' }),
+      });
     }
   }, [open, weaponId]);
 
   const isPending = !picked;
 
   return (
-    <div className={`pick-overlay${open ? ' on' : ''}`}>
+    <div className="pick-overlay" ref={overlayRef}>
       <div className="pick-head">
         <div>
           <h2>Set <em>target</em>.</h2>

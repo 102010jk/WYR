@@ -1,4 +1,5 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import gsap from 'gsap';
 import { CartItem, DeployMode } from '../../types';
 import { weaponById, categoryById } from '../../data';
 
@@ -11,31 +12,78 @@ interface Props {
   onRemove: (weaponId: string) => void;
   onOpenPicker: (weaponId: string) => void;
   onShowToast: (line: string, sub: string, red?: boolean) => void;
+  isActive: boolean;
 }
 
-export default function Cart({ cart, onUpdateMode, onUpdateAddress, onRemove, onOpenPicker, onShowToast }: Props) {
+export default function Cart({ cart, onUpdateMode, onUpdateAddress, onRemove, onOpenPicker, onShowToast, isActive }: Props) {
   const [warnKey, setWarnKey] = useState(0);
-  const [warnMsg, setWarnMsg] = useState(' ');
-  const buyRef = useRef<HTMLButtonElement>(null);
+  const [warnMsg, setWarnMsg] = useState(' ');
+  const buyRef    = useRef<HTMLButtonElement>(null);
+  const itemsRef  = useRef<HTMLDivElement>(null);
+  const pageRef   = useRef<HTMLDivElement>(null);
+  const prevActive = useRef(false);
+  const prevCount  = useRef(cart.length);
 
-  const count = cart.length;
-  const subtotal   = cart.reduce((s, it) => s + (weaponById(it.weaponId)?.price ?? 0), 0);
-  const handling   = Math.round(subtotal * 0.12);
-  const insurance  = Math.round(subtotal * 0.04);
-  const total      = subtotal + handling + insurance;
-  const funds      = VAULT_BALANCE - total;
-  const pending    = cart.filter(it => it.mode === 'DROP' && !it.target).length;
-  const dropTotal  = cart.filter(it => it.mode === 'DROP').length;
+  const count    = cart.length;
+  const subtotal  = cart.reduce((s, it) => s + (weaponById(it.weaponId)?.price ?? 0), 0);
+  const handling  = Math.round(subtotal * 0.12);
+  const insurance = Math.round(subtotal * 0.04);
+  const total     = subtotal + handling + insurance;
+  const funds     = VAULT_BALANCE - total;
+  const pending   = cart.filter(it => it.mode === 'DROP' && !it.target).length;
+  const dropTotal = cart.filter(it => it.mode === 'DROP').length;
+
+  // Page entrance animation
+  useEffect(() => {
+    if (isActive && !prevActive.current && pageRef.current) {
+      const el = pageRef.current;
+      gsap.fromTo(
+        el.querySelectorAll('.crumb, .page-head h1, .page-head .meta > *'),
+        { opacity: 0, y: -12 },
+        { opacity: 1, y: 0, stagger: 0.06, duration: 0.4, ease: 'power2.out', delay: 0.05, clearProps: 'transform,opacity' }
+      );
+      gsap.fromTo(
+        el.querySelectorAll('.cart > *'),
+        { opacity: 0, y: 20 },
+        { opacity: 1, y: 0, stagger: 0.1, duration: 0.5, ease: 'power2.out', delay: 0.12, clearProps: 'transform,opacity' }
+      );
+    }
+    prevActive.current = isActive;
+  }, [isActive]);
+
+  // Animate items on count change
+  useEffect(() => {
+    if (!itemsRef.current) return;
+    const els = itemsRef.current.querySelectorAll('.item');
+    if (cart.length > prevCount.current) {
+      // New item added — stagger in all items
+      gsap.fromTo(els,
+        { opacity: 0, x: -14 },
+        { opacity: 1, x: 0, stagger: 0.06, duration: 0.38, ease: 'power2.out', clearProps: 'transform,opacity' }
+      );
+    }
+    prevCount.current = cart.length;
+  }, [cart.length]);
 
   function handleBuy() {
+    // GSAP shake on BUY button
+    if (buyRef.current) {
+      gsap.timeline()
+        .to(buyRef.current, { x: -7, duration: 0.05 })
+        .to(buyRef.current, { x:  7, duration: 0.05 })
+        .to(buyRef.current, { x: -5, duration: 0.05 })
+        .to(buyRef.current, { x:  5, duration: 0.05 })
+        .to(buyRef.current, { x: -3, duration: 0.05 })
+        .to(buyRef.current, { x:  0, duration: 0.05, clearProps: 'x' });
+    }
     setWarnKey(k => k + 1);
     setWarnMsg('▸ INSUFFICIENT FUNDS');
     onShowToast('▸ TRANSACTION DENIED', 'INSUFFICIENT FUNDS · VAULT BALANCE TOO LOW', true);
-    setTimeout(() => setWarnMsg(' '), 3000);
+    setTimeout(() => setWarnMsg(' '), 3000);
   }
 
   return (
-    <>
+    <div ref={pageRef}>
       <div className="page-head">
         <div className="left">
           <span className="crumb">// MANIFEST.{(1000 + count).toString().padStart(4,'0')}</span>
@@ -54,7 +102,7 @@ export default function Cart({ cart, onUpdateMode, onUpdateAddress, onRemove, on
             <div className="b-col"><div className="k">ORBITAL PLATFORM</div><div className="v">SWORD-7&nbsp;<span style={{ color:'var(--dim)' }}>·</span>&nbsp;<span className="green">READY</span></div></div>
             <div className="b-col"><div className="k">PAYLOADS PENDING TARGET</div><div className={`v ${pending > 0 ? 'red' : 'green'}`}>{pending} OF {dropTotal}</div></div>
           </div>
-          <div className="items">
+          <div className="items" ref={itemsRef}>
             {count === 0 ? (
               <div className="empty">// CART EMPTY<div className="sub">Browse the arsenal to stage payloads.</div></div>
             ) : (
@@ -149,6 +197,6 @@ export default function Cart({ cart, onUpdateMode, onUpdateAddress, onRemove, on
           >▸ BUY</button>
         </div>
       </div>
-    </>
+    </div>
   );
 }
